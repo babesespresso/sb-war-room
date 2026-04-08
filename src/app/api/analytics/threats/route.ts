@@ -177,6 +177,62 @@ async function scanFacebookComments(): Promise<any[]> {
   }
 }
 
+// ============================================================
+// META / INSTAGRAM COMMENT SCANNER
+// ============================================================
+async function scanInstagramComments(): Promise<any[]> {
+  const token = process.env.META_ACCESS_TOKEN;
+  const igId = process.env.INSTAGRAM_BUSINESS_ACCOUNT_ID;
+  if (!token || !igId) return [];
+
+  try {
+    const mediaRes = await fetch(
+      `https://graph.facebook.com/v25.0/${igId}/media?fields=id,caption&limit=5&access_token=${token}`,
+      { next: { revalidate: 300 } }
+    );
+    if (!mediaRes.ok) return [];
+    const mediaData = await mediaRes.json();
+    const mediaList = mediaData.data || [];
+
+    const allComments: any[] = [];
+
+    for (const media of mediaList) {
+      const commentsRes = await fetch(
+        `https://graph.facebook.com/v25.0/${media.id}/comments?fields=id,text,username,timestamp,like_count&limit=50&access_token=${token}`
+      );
+      if (!commentsRes.ok) continue;
+      const commentsData = await commentsRes.json();
+
+      for (const comment of (commentsData.data || [])) {
+        const classification = classifyThreat(comment.text || '', {});
+        if (classification.threat_level === 'safe') continue;
+
+        allComments.push({
+          id: `ig_${comment.id}`,
+          postId: `ig_${comment.id}`,
+          author: comment.username || 'Instagram User',
+          handle: comment.username ? `@${comment.username}` : 'unknown',
+          avatar: '',
+          content: comment.text,
+          timestamp: comment.timestamp,
+          threat_level: classification.threat_level,
+          confidence: classification.confidence,
+          flags: classification.flags,
+          hidden: false,
+          platform: 'instagram',
+          metrics: { like_count: comment.like_count || 0 },
+          authorVerified: false,
+          authorFollowers: 0,
+        });
+      }
+    }
+    return allComments;
+  } catch (err) {
+    console.error('[ThreatScan] Instagram scan error:', err);
+    return [];
+  }
+}
+
 export async function GET() {
   try {
     const apiKey = (process.env.TWITTER_API_KEY || '').trim();
@@ -246,8 +302,16 @@ export async function GET() {
       console.error('[ThreatScan] FB scan failed:', e);
     }
 
+    // --- INSTAGRAM COMMENT SCANNING ---
+    let igThreats: any[] = [];
+    try {
+      igThreats = await scanInstagramComments();
+    } catch (e) {
+      console.error('[ThreatScan] IG scan failed:', e);
+    }
+
     // Merge all threats
-    const allPlatformThreats = [...threats, ...fbThreats];
+    const allPlatformThreats = [...threats, ...fbThreats, ...igThreats];
 
     const db = createServiceClient();
     

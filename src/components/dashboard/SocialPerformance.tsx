@@ -50,6 +50,7 @@ interface MetaData {
     media_count: number;
     picture: string | null;
     posts: IGPost[];
+    avg_engagement?: number;
   } | null;
 }
 
@@ -63,6 +64,8 @@ interface TwitterData {
     following: number;
     totalTweets: number;
     estimatedReach: number;
+    estimatedEngagements: number;
+    avgEngagementRate: number;
   };
 }
 
@@ -244,7 +247,7 @@ function OverviewTab({ meta, twitter }: { meta: MetaData | null; twitter: Twitte
       color: '#e1306c',
       connected: !!meta?.instagram,
       followers: meta?.instagram?.followers || 0,
-      engagement: 0,
+      engagement: meta?.instagram?.avg_engagement || 0,
       posts: meta?.instagram?.media_count || 0,
     },
     {
@@ -253,7 +256,7 @@ function OverviewTab({ meta, twitter }: { meta: MetaData | null; twitter: Twitte
       color: '#ffffff',
       connected: twitter?.connected,
       followers: twitter?.stats?.followers || 0,
-      engagement: 0,
+      engagement: twitter?.stats?.estimatedEngagements || 0,
       posts: twitter?.stats?.totalTweets || 0,
     },
   ];

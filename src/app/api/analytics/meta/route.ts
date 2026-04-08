@@ -119,6 +119,11 @@ export async function GET() {
     );
     const avgFbEngagement = fbPosts.length > 0 ? Math.round(totalFbEngagement / fbPosts.length) : 0;
 
+    const totalIgEngagement = igPosts.reduce(
+      (sum: number, p: any) => sum + p.likes + p.comments, 0
+    );
+    const avgIgEngagement = igPosts.length > 0 ? Math.round(totalIgEngagement / igPosts.length) : 0;
+
     return NextResponse.json({
       connected: true,
       facebook: {
@@ -140,6 +145,7 @@ export async function GET() {
         media_count: igData?.media_count || 0,
         picture: igData?.profile_picture_url || null,
         posts: igPosts,
+        avg_engagement: avgIgEngagement,
       } : null,
       last_updated: new Date().toISOString(),
     });
