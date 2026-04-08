@@ -20,3 +20,38 @@
 
  ✓ Starting...
  ✓ Ready in 1469ms
+   Reload env: .env.local
+ ○ Compiling /middleware ...
+ ✓ Compiled /middleware in 600ms (167 modules)
+ ○ Compiling /api/persona/video/process ...
+ ✓ Compiled /api/persona/video/process in 2.2s (435 modules)
+[VideoProcess] Starting processing for video: 1b0a5432-78e9-43f8-83a2-d5eefb245c55
+[VideoAnalyzer] Transcribing video: IMG_1128
+[VideoAnalyzer] Analyzing transcript: 1242 chars
+[VideoAnalyzer] Completed: 6 talking points, 3 positions extracted
+ POST /api/persona/video/process 200 in 25680ms
+ ○ Compiling /api/persona/video ...
+ ✓ Compiled /api/persona/video in 579ms (437 modules)
+ GET /api/persona/video 200 in 1069ms
+ ✓ Compiled in 719ms
+ ○ Compiling /api/persona/video/process ...
+ ✓ Compiled /api/persona/video/process in 1357ms (241 modules)
+[VideoProcess] Starting processing for video: 1b0a5432-78e9-43f8-83a2-d5eefb245c55
+[VideoAnalyzer] Setting status to 'transcribing' for 1b0a5432-78e9-43f8-83a2-d5eefb245c55...
+[VideoAnalyzer] Transcribing video: IMG_1128
+[VideoAnalyzer] Transcription complete: 1242 chars, 24 segments
+[VideoAnalyzer] Saving transcript and setting status to 'analyzing'...
+[VideoAnalyzer] ❌ Failed for 1b0a5432-78e9-43f8-83a2-d5eefb245c55: DB update to 'analyzing' failed: Could not find the 'transcript_segments' column of 'video_training_sources' in the schema cache
+[VideoProcess] Processing error: DB update to 'analyzing' failed: Could not find the 'transcript_segments' column of 'video_training_sources' in the schema cache
+ POST /api/persona/video/process 500 in 6440ms
+[VideoProcess] Starting processing for video: 1b0a5432-78e9-43f8-83a2-d5eefb245c55
+[VideoAnalyzer] Setting status to 'transcribing' for 1b0a5432-78e9-43f8-83a2-d5eefb245c55...
+[VideoAnalyzer] Transcribing video: IMG_1128
+[VideoAnalyzer] Transcription complete: 1242 chars, 24 segments
+[VideoAnalyzer] Saving transcript and setting status to 'analyzing'...
+[VideoAnalyzer] Analyzing transcript with Claude...
+[VideoAnalyzer] Analysis complete: 5 talking points, 3 positions
+[VideoAnalyzer] Saving analysis results and marking as 'completed'...
+[VideoAnalyzer] ❌ Failed for 1b0a5432-78e9-43f8-83a2-d5eefb245c55: DB update to 'completed' failed: Could not find the 'processed_at' column of 'video_training_sources' in the schema cache
+[VideoProcess] Processing error: DB update to 'completed' failed: Could not find the 'processed_at' column of 'video_training_sources' in the schema cache
+ POST /api/persona/video/process 500 in 17588ms

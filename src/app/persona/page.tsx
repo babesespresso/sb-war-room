@@ -161,12 +161,38 @@ export default function PersonaPage() {
     fetchVideoSources();
   }, []);
 
-  // Poll for processing status updates
+  // Track which videos we've already triggered processing for (to avoid duplicate triggers)
+  const triggeredProcessingRef = useRef<Set<string>>(new Set());
+
+  // Poll for processing status updates and auto-trigger processing for 'uploaded' videos
   useEffect(() => {
     const hasProcessing = videoSources.some(
       v => v.processing_status === 'uploaded' || v.processing_status === 'transcribing' || v.processing_status === 'analyzing'
     );
     if (!hasProcessing) return;
+
+    // Auto-trigger processing for any video stuck in 'uploaded' that we haven't triggered yet
+    const uploadedVideos = videoSources.filter(
+      v => v.processing_status === 'uploaded' && !triggeredProcessingRef.current.has(v.id)
+    );
+    for (const v of uploadedVideos) {
+      triggeredProcessingRef.current.add(v.id);
+      console.log('[Train from Video] Auto-triggering processing for:', v.title, v.id);
+      fetch('/api/persona/video/process', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ videoId: v.id }),
+      }).then(res => {
+        if (res.ok) {
+          console.log('[Train from Video] Processing completed for:', v.title);
+        } else {
+          res.json().then(err => console.error('[Train from Video] Processing failed for:', v.title, err.error)).catch(() => {});
+        }
+        fetchVideoSources();
+      }).catch(err => {
+        console.error('[Train from Video] Processing request failed:', err.message);
+      });
+    }
 
     const interval = setInterval(() => {
       fetchVideoSources();
