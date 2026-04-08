@@ -1,4 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
+
+// ... other imports ...
 import { createServiceClient } from '@/lib/supabase/client';
 import {
   getVideoTrainingSources,
@@ -74,13 +76,12 @@ export async function POST(req: NextRequest) {
       processing_status: 'uploaded',
     });
 
-    // Wait for the async processing pipeline to complete so Vercel doesn't kill the lambda
-    try {
-      await processVideoTrainingSource(record.id, TENANT_ID);
-    } catch (err: any) {
-      console.error(`[VideoAPI] Processing failed for ${record.id}:`, err.message);
-      // We still return success for the upload, but the DB will reflect processing_error
-    }
+    // Use Next.js 15 `after` API to ensure the lambda doesn't terminate before transcribing completes
+    after(() => {
+      processVideoTrainingSource(record.id, TENANT_ID).catch((err: any) => {
+        console.error(`[VideoAPI] Processing failed for ${record.id}:`, err.message);
+      });
+    });
 
     return NextResponse.json({
       success: true,

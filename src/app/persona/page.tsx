@@ -10,7 +10,7 @@ import InfoTooltip from '@/components/ui/InfoTooltip';
 import { SCOTT_VOICE_GUIDE_DEFAULT, SCOTT_CONTENT_RULES_DEFAULT } from '@/lib/persona';
 import { FFmpeg } from '@ffmpeg/ffmpeg';
 import { fetchFile } from '@ffmpeg/util';
-import { Component as AILoader } from '@/components/ui/ai-loader';
+import CubeLoader from '@/components/ui/cube-loader';
 
 let ffmpegInstance: FFmpeg | null = null;
 
@@ -532,7 +532,7 @@ export default function PersonaPage() {
   if (loading) {
     return (
       <div className="min-h-screen p-6 flex flex-col items-center justify-center" style={{ background: 'var(--surface-0)' }}>
-        <AILoader />
+        <CubeLoader />
       </div>
     );
   }
