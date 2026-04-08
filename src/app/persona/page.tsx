@@ -440,7 +440,7 @@ export default function PersonaPage() {
         xhr.send(processedFile);
       });
 
-      setUploadStatus('Finalizing analysis...');
+      setUploadStatus('Registering...');
 
       setUploadProgress(85);
 
@@ -462,6 +462,34 @@ export default function PersonaPage() {
         throw new Error(errJson.error || 'Failed to register video');
       }
 
+      const registerData = await registerRes.json();
+      setUploadProgress(95);
+
+      // Step 4: Trigger processing in the background (fire-and-forget)
+      // The processing endpoint has a 5-minute timeout and runs transcription + analysis.
+      // The existing polling (every 5s) will pick up status changes in the UI.
+      if (registerData.source?.id) {
+        console.log('[Train from Video] Step 4: Triggering processing for', registerData.source.id);
+        setUploadStatus('Starting transcription...');
+        fetch('/api/persona/video/process', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ videoId: registerData.source.id }),
+        }).then(res => {
+          if (res.ok) {
+            console.log('[Train from Video] Processing completed successfully');
+          } else {
+            res.json().then(err => {
+              console.error('[Train from Video] Processing failed:', err.error);
+            }).catch(() => {});
+          }
+          // Refresh list to show final status
+          fetchVideoSources();
+        }).catch(err => {
+          console.error('[Train from Video] Processing request failed:', err.message);
+        });
+      }
+
       setUploadProgress(100);
 
       // Reset form
@@ -469,7 +497,7 @@ export default function PersonaPage() {
       setVideoSourceType('speech');
       if (fileInputRef.current) fileInputRef.current.value = '';
 
-      // Refresh video sources list
+      // Refresh video sources list to show the new entry
       await fetchVideoSources();
 
       setTimeout(() => setUploadProgress(0), 1000);

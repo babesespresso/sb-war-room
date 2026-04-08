@@ -1,14 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { waitUntil } from '@vercel/functions';
 
-// ... other imports ...
 import { createServiceClient } from '@/lib/supabase/client';
 import {
   getVideoTrainingSources,
   insertVideoTrainingSource,
   deleteVideoTrainingSource,
 } from '@/lib/supabase/queries';
-import { processVideoTrainingSource } from '@/lib/agents/video-analyzer';
 
 const TENANT_ID = process.env.DEFAULT_TENANT_ID || 'bottoms-2026';
 
@@ -32,18 +29,8 @@ export async function GET() {
 /**
  * POST /api/persona/video
  * Register a video that was already uploaded directly to Supabase Storage.
- * The client uploads the file directly to storage (bypassing the 4.5MB serverless limit),
- * then calls this endpoint with the storage path and metadata to create the DB record
- * and kick off the transcription/analysis pipeline.
- *
- * Accepts JSON body:
- * {
- *   storage_path: string,  // Supabase Storage path (e.g. "bottoms-2026/1712345678-video.mp4")
- *   title: string,
- *   source_type: string,
- *   file_size: number,
- *   description?: string
- * }
+ * Returns the record immediately. Processing is triggered separately via
+ * POST /api/persona/video/process to avoid serverless timeout issues.
  */
 export async function POST(req: NextRequest) {
   try {
@@ -77,17 +64,10 @@ export async function POST(req: NextRequest) {
       processing_status: 'uploaded',
     });
 
-    // Use Vercel's native waitUntil to keep lambda alive for background processing
-    waitUntil(
-      processVideoTrainingSource(record.id, TENANT_ID).catch((err: any) => {
-        console.error(`[VideoAPI] Processing failed for ${record.id}:`, err.message);
-      })
-    );
-
     return NextResponse.json({
       success: true,
       source: record,
-      message: 'Video registered and processed successfully.',
+      message: 'Video registered. Processing will begin shortly.',
     });
   } catch (error: any) {
     console.error('[VideoAPI] POST error:', error);
