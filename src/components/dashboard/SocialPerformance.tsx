@@ -55,11 +55,15 @@ interface MetaData {
 
 interface TwitterData {
   connected: boolean;
-  followers?: number;
-  following?: number;
-  tweet_count?: number;
-  impressions?: number;
-  recent_tweets?: any[];
+  handle?: string;
+  name?: string;
+  profileImage?: string;
+  stats?: {
+    followers: number;
+    following: number;
+    totalTweets: number;
+    estimatedReach: number;
+  };
 }
 
 function formatNumber(n: number): string {
@@ -248,9 +252,9 @@ function OverviewTab({ meta, twitter }: { meta: MetaData | null; twitter: Twitte
       icon: XIcon,
       color: '#ffffff',
       connected: twitter?.connected,
-      followers: twitter?.followers || 0,
+      followers: twitter?.stats?.followers || 0,
       engagement: 0,
-      posts: twitter?.tweet_count || 0,
+      posts: twitter?.stats?.totalTweets || 0,
     },
   ];
 
@@ -480,10 +484,10 @@ function XTab({ data }: { data: TwitterData | null }) {
     <div className="space-y-4">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { label: 'Followers', value: formatNumber(data.followers || 0), icon: Users, color: '#fff' },
-          { label: 'Following', value: formatNumber(data.following || 0), icon: Users, color: '#60a5fa' },
-          { label: 'Total Tweets', value: formatNumber(data.tweet_count || 0), icon: TrendingUp, color: '#34d399' },
-          { label: 'Impressions', value: formatNumber(data.impressions || 0), icon: BarChart3, color: '#c084fc' },
+          { label: 'Followers', value: formatNumber(data.stats?.followers || 0), icon: Users, color: '#fff' },
+          { label: 'Following', value: formatNumber(data.stats?.following || 0), icon: Users, color: '#60a5fa' },
+          { label: 'Total Tweets', value: formatNumber(data.stats?.totalTweets || 0), icon: TrendingUp, color: '#34d399' },
+          { label: 'Impressions', value: formatNumber(data.stats?.estimatedReach || 0), icon: BarChart3, color: '#c084fc' },
         ].map((stat) => {
           const Icon = stat.icon;
           return (

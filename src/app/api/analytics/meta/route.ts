@@ -25,7 +25,11 @@ export async function GET() {
       `https://graph.facebook.com/${META_API_VERSION}/${pageId}?fields=name,followers_count,fan_count,about,picture.type(large)&access_token=${token}`,
       { next: { revalidate: 300 } }
     );
-    const pageInfo = pageInfoRes.ok ? await pageInfoRes.json() : null;
+    if (!pageInfoRes.ok) {
+        const errorData = await pageInfoRes.json();
+        throw new Error(errorData.error?.message || 'Failed to fetch Facebook Page Insights');
+    }
+    const pageInfo = await pageInfoRes.json();
 
     // 2. Recent posts with engagement
     const postsRes = await fetch(

@@ -10,6 +10,7 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/api/ai/') ||
     pathname.startsWith('/api/slack') ||
     pathname.startsWith('/api/cron') ||
+    pathname.startsWith('/api/analytics/') ||
     pathname.startsWith('/api/persona/')
   ) {
     return NextResponse.next();
