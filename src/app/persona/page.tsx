@@ -10,6 +10,7 @@ import InfoTooltip from '@/components/ui/InfoTooltip';
 import { SCOTT_VOICE_GUIDE_DEFAULT, SCOTT_CONTENT_RULES_DEFAULT } from '@/lib/persona';
 import { FFmpeg } from '@ffmpeg/ffmpeg';
 import { fetchFile } from '@ffmpeg/util';
+import { Component as AILoader } from '@/components/ui/ai-loader';
 
 let ffmpegInstance: FFmpeg | null = null;
 
@@ -177,7 +178,10 @@ export default function PersonaPage() {
   async function fetchPersona() {
     setLoading(true);
     try {
-      const res = await fetch('/api/persona');
+      const [res] = await Promise.all([
+        fetch('/api/persona'),
+        new Promise(resolve => setTimeout(resolve, 2500)) // Force minimum 2.5s display for AI loader UX
+      ]);
       if (!res.ok) throw new Error('Failed to load persona');
       const json = await res.json();
       setData(json);
@@ -527,11 +531,8 @@ export default function PersonaPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen p-6 flex items-center justify-center" style={{ background: 'var(--surface-0)' }}>
-        <div className="flex items-center gap-3 text-slate-400">
-          <Loader2 className="w-6 h-6 animate-spin" />
-          <span className="text-lg font-medium">Loading AI Persona...</span>
-        </div>
+      <div className="min-h-screen p-6 flex flex-col items-center justify-center" style={{ background: 'var(--surface-0)' }}>
+        <AILoader />
       </div>
     );
   }
