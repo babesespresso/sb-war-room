@@ -35,48 +35,7 @@ const THREAT_LABELS: Record<string, string> = {
   spam: 'SPAM',
 };
 
-// Simulated threat data — will be replaced with live API scanning
-function generateThreats(): ThreatItem[] {
-  const threats: ThreatItem[] = [
-    {
-      id: '1', postId: '1907482651390', author: 'PatriotEagle2026', handle: '@PatEagle_CO', avatar: '',
-      content: 'Scott Bottoms is a RINO plant. He doesn\'t represent real conservatives. VOTE HIM OUT. #FakeRepublican',
-      timestamp: new Date(Date.now() - 3600000).toISOString(), threat_level: 'hostile', confidence: 94,
-      flags: ['Personal attack', 'Inflammatory language'], hidden: false, platform: 'x',
-    },
-    {
-      id: '2', postId: '1907481229440', author: 'user_8847261_co', handle: '@user8847261', avatar: '',
-      content: '@ScottBottomsCO corruption scandal exposed! Share before they delete! bit.ly/fake-link',
-      timestamp: new Date(Date.now() - 7200000).toISOString(), threat_level: 'bot', confidence: 97,
-      flags: ['New account (2 days)', 'Suspicious link', 'No profile photo', 'Repetitive posting pattern'], hidden: false, platform: 'x',
-    },
-    {
-      id: '3', postId: '1907478103820', author: 'CO_Politics_Watch', handle: '@COPoliticsWatch', avatar: '',
-      content: 'Bottoms campaign has serious funding issues. Multiple donors requesting refunds. Campaign is in trouble.',
-      timestamp: new Date(Date.now() - 14400000).toISOString(), threat_level: 'negative', confidence: 72,
-      flags: ['Unverified claims', 'No source cited'], hidden: false, platform: 'x',
-    },
-    {
-      id: '4', postId: '1907476891210', author: 'xj3882k_account', handle: '@xj3882k_acct', avatar: '',
-      content: '@ScottBottomsCO @ScottBottomsCO @ScottBottomsCO RESPOND TO THE PEOPLE!!! #BottomsOut #COGov',
-      timestamp: new Date(Date.now() - 18000000).toISOString(), threat_level: 'bot', confidence: 91,
-      flags: ['Repetitive mentions', 'Coordinated hashtag', 'Account age < 1 week'], hidden: false, platform: 'x',
-    },
-    {
-      id: '5', postId: '1907471058390', author: 'DenverMom4Kids', handle: '@DenverMom4K', avatar: '',
-      content: 'Very disappointed in Scott Bottoms\' position on education. Expected more from a Republican candidate.',
-      timestamp: new Date(Date.now() - 28800000).toISOString(), threat_level: 'negative', confidence: 58,
-      flags: ['Policy criticism'], hidden: false, platform: 'x',
-    },
-    {
-      id: '6', postId: '1907465220180', author: 'TruthBomber_USA', handle: '@truth_bomb_usa', avatar: '',
-      content: 'BREAKING: Scott Bottoms caught lying about his military record. PROOF inside. RT before censored!',
-      timestamp: new Date(Date.now() - 36000000).toISOString(), threat_level: 'hostile', confidence: 88,
-      flags: ['Misinformation', 'Urgency manipulation', 'No evidence provided'], hidden: false, platform: 'x',
-    },
-  ];
-  return threats;
-}
+// No more fake data — threats are sourced exclusively from the live API
 
 export default function ThreatMonitor() {
   const [threats, setThreats] = useState<ThreatItem[]>([]);
@@ -95,11 +54,11 @@ export default function ThreatMonitor() {
         if (data.threats && data.threats.length > 0) {
           setThreats(data.threats);
         } else {
-          setThreats(generateThreats()); // Fallback to demo if clean
+          setThreats([]); // No threats detected — clean perimeter
         }
       } catch (error) {
         console.error('Failed to fetch live threats:', error);
-        setThreats(generateThreats());
+        setThreats([]); // API error — show empty state
       } finally {
         setIsLoading(false);
       }

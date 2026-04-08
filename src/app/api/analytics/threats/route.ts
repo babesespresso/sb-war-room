@@ -329,6 +329,7 @@ export async function GET() {
         confidence: t.confidence,
         flags: t.flags,
         metrics: t.metrics,
+        detected_at: t.timestamp || new Date().toISOString(), // Use actual tweet/comment timestamp
       }, { onConflict: 'tenant_id, post_id', ignoreDuplicates: true }); // keep existing status if it exists
     }
 
