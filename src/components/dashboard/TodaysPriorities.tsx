@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import {
   Crosshair, TrendingUp, AlertTriangle, CheckCircle, FileText, Users,
   Shield, Zap, ArrowUpRight, ChevronRight, Gauge, Newspaper, Clock,
-  Send, Radar, ExternalLink
+  Send, Radar, ExternalLink, AlertCircle, WifiOff
 } from 'lucide-react';
 import InfoTooltip from '@/components/ui/InfoTooltip';
 
@@ -33,6 +33,12 @@ interface WinItem {
   link?: string;
 }
 
+interface DataSourceStatus {
+  name: string;
+  available: boolean;
+  error?: string;
+}
+
 interface PriorityData {
   healthScore: number;
   healthTrend: string;
@@ -40,6 +46,7 @@ interface PriorityData {
   actions: ActionItem[];
   wins: WinItem[];
   lastUpdated: string;
+  dataSources?: DataSourceStatus[];
 }
 
 const URGENCY_CONFIG: Record<string, { color: string; bg: string; border: string; label: string }> = {
@@ -120,6 +127,13 @@ export default function TodaysPriorities() {
           </div>
           {data && (
             <div className="flex items-center gap-2">
+              {/* Data source status indicators */}
+              {data.dataSources && data.dataSources.some(ds => !ds.available) && (
+                <div className="flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider" style={{ background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b', border: '1px solid rgba(245, 158, 11, 0.2)' }}>
+                  <WifiOff className="w-3 h-3" />
+                  {data.dataSources.filter(ds => !ds.available).map(ds => ds.name.split(' ')[0]).join(', ')} offline
+                </div>
+              )}
               <span className="text-xs px-2 py-1 rounded-full font-bold" style={{
                 background: `${getHealthColor(data.healthScore)}15`,
                 color: getHealthColor(data.healthScore),

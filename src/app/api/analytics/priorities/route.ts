@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/client';
+import { fetchMMDBData } from '@/lib/data/mmdb';
+import { fetchSocialData } from '@/lib/data/social';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,16 +31,57 @@ interface WinItem {
   link?: string;
 }
 
+interface DataSourceStatus {
+  name: string;
+  available: boolean;
+  error?: string;
+}
+
 export async function GET() {
   try {
     const db = createServiceClient();
+    const dataSources: DataSourceStatus[] = [];
 
-    // ── Fetch all real data in parallel ──
+    // ── Fetch MMDB directly (no self-referencing HTTP) ──
+    let mmdbGrowth = 0, mmdbTotal = 0, mmdbPipeline = 0, mmdbVelocityChange = '';
+    try {
+      const mmdb = await fetchMMDBData();
+      if (mmdb.status === 'live') {
+        mmdbGrowth = mmdb.growth.weeklyVelocity;
+        mmdbTotal = mmdb.growth.totalSupporters;
+        mmdbPipeline = mmdb.pipelines.totalOpportunities;
+        mmdbVelocityChange = mmdb.growth.velocityChange;
+        dataSources.push({ name: 'MMDB (GoHighLevel)', available: true });
+      } else {
+        dataSources.push({ name: 'MMDB (GoHighLevel)', available: false, error: mmdb.error });
+      }
+    } catch (err: any) {
+      dataSources.push({ name: 'MMDB (GoHighLevel)', available: false, error: err.message });
+    }
+
+    // ── Fetch Social directly (no self-referencing HTTP) ──
+    let followers = 0, followerGrowth = 0, engagementRate = 0;
+    try {
+      const social = await fetchSocialData();
+      if (social.connected) {
+        followers = social.stats?.followers || 0;
+        followerGrowth = social.stats?.followerGrowth || 0;
+        engagementRate = social.stats?.avgEngagementRate || 0;
+        dataSources.push({ name: 'X (Twitter)', available: true });
+      } else {
+        dataSources.push({ name: 'X (Twitter)', available: false, error: social.error });
+      }
+    } catch (err: any) {
+      dataSources.push({ name: 'X (Twitter)', available: false, error: err.message });
+    }
+
+    // ── Fetch all DB data in parallel ──
     const [
       pendingRes,
       approvedRes,
       publishedRes,
       competitorHighRes,
+      competitorResolvedRes,
       competitorRecentRes,
       newsRecentRes,
       topNewsMentionsRes,
@@ -48,8 +91,10 @@ export async function GET() {
       db.from('content_drafts').select('id, body, content_type, created_at', { count: 'exact' }).eq('tenant_id', TENANT_ID).eq('status', 'pending_review').order('created_at', { ascending: false }).limit(5),
       db.from('content_drafts').select('*', { count: 'exact', head: true }).eq('tenant_id', TENANT_ID).eq('status', 'approved'),
       db.from('content_drafts').select('*', { count: 'exact', head: true }).eq('tenant_id', TENANT_ID).eq('status', 'published'),
-      // Competitor threats
-      db.from('competitor_activities').select('id, summary, threat_level, detected_at, competitor:competitor_id(name)', { count: 'exact' }).eq('tenant_id', TENANT_ID).in('threat_level', ['high', 'critical']).order('detected_at', { ascending: false }).limit(3),
+      // Competitor threats — only UNRESOLVED ones (response_status is null or 'unresolved')
+      db.from('competitor_activities').select('id, summary, threat_level, detected_at, competitor:competitor_id(name)', { count: 'exact' }).eq('tenant_id', TENANT_ID).in('threat_level', ['high', 'critical']).or('response_status.is.null,response_status.eq.unresolved').order('detected_at', { ascending: false }).limit(3),
+      // Resolved threats (for wins section)
+      db.from('competitor_activities').select('*', { count: 'exact', head: true }).eq('tenant_id', TENANT_ID).in('threat_level', ['high', 'critical']).eq('response_status', 'resolved'),
       // Recent competitor activity (last 48h)
       db.from('competitor_activities').select('*', { count: 'exact', head: true }).eq('tenant_id', TENANT_ID).gte('detected_at', new Date(Date.now() - 48 * 3600000).toISOString()),
       // Recent news
@@ -64,39 +109,15 @@ export async function GET() {
     const pendingDrafts = pendingRes.data || [];
     const approvedContent = approvedRes.count || 0;
     const publishedContent = publishedRes.count || 0;
-    const competitorThreats = competitorHighRes.count || 0;
+    const unresolvedThreats = competitorHighRes.count || 0;
     const threatItems = competitorHighRes.data || [];
+    const resolvedThreats = competitorResolvedRes.count || 0;
     const recentCompetitorActivity = competitorRecentRes.count || 0;
     const recentNews = newsRecentRes.count || 0;
     const candidateMentions = topNewsMentionsRes.data || [];
     const agentRunsToday = agentRunsRes.count || 0;
 
-    // ── Fetch MMDB ──
-    let mmdbGrowth = 0, mmdbTotal = 0, mmdbPipeline = 0, mmdbVelocityChange = '';
-    try {
-      const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000';
-      const mmdbRes = await fetch(`${baseUrl}/api/analytics/mmdb`, { cache: 'no-store' });
-      if (mmdbRes.ok) {
-        const mmdb = await mmdbRes.json();
-        mmdbGrowth = mmdb.growth?.weeklyVelocity || 0;
-        mmdbTotal = mmdb.growth?.totalSupporters || 0;
-        mmdbPipeline = mmdb.pipelines?.totalOpportunities || 0;
-        mmdbVelocityChange = mmdb.growth?.velocityChange || '';
-      }
-    } catch { /* MMDB unavailable */ }
-
-    // ── Fetch Social ──
-    let followers = 0, followerGrowth = 0, engagementRate = 0;
-    try {
-      const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000';
-      const socialRes = await fetch(`${baseUrl}/api/analytics/social`, { cache: 'no-store' });
-      if (socialRes.ok) {
-        const social = await socialRes.json();
-        followers = social.stats?.followers || 0;
-        followerGrowth = social.stats?.followerGrowth || 0;
-        engagementRate = social.stats?.avgEngagementRate || 0;
-      }
-    } catch { /* Social unavailable */ }
+    dataSources.push({ name: 'Supabase', available: true });
 
     // ── Health Score Breakdown ──
     const breakdown: HealthBreakdown[] = [];
@@ -132,11 +153,21 @@ export async function GET() {
     else if (pendingContent > 2) contentScore = 15;
     breakdown.push({ label: 'Content Pipeline', score: contentScore, maxScore: 20, status: contentScore >= 15 ? 'excellent' : contentScore >= 10 ? 'good' : contentScore > 5 ? 'warning' : 'critical' });
 
-    // 5. Threat Response (0-15)
+    // 5. Threat Response (0-15) — Now rewards resolving threats
     let threatScore = 15;
-    if (competitorThreats > 5) threatScore = 3;
-    else if (competitorThreats > 2) threatScore = 8;
-    else if (competitorThreats > 0) threatScore = 12;
+    const totalHighThreats = unresolvedThreats + resolvedThreats;
+    if (totalHighThreats === 0) {
+      threatScore = 15; // No threats = full score
+    } else {
+      // Score based on the ratio of resolved vs total threats
+      const resolveRatio = resolvedThreats / totalHighThreats;
+      if (resolveRatio >= 0.8) threatScore = 15;
+      else if (resolveRatio >= 0.5) threatScore = 12;
+      else if (resolveRatio >= 0.2) threatScore = 8;
+      else if (unresolvedThreats <= 2) threatScore = 10;
+      else if (unresolvedThreats <= 5) threatScore = 6;
+      else threatScore = 3;
+    }
     breakdown.push({ label: 'Threat Response', score: threatScore, maxScore: 15, status: threatScore >= 12 ? 'excellent' : threatScore >= 8 ? 'good' : threatScore > 3 ? 'warning' : 'critical' });
 
     const totalScore = breakdown.reduce((sum, b) => sum + b.score, 0);
@@ -158,18 +189,18 @@ export async function GET() {
       });
     }
 
-    if (competitorThreats > 0) {
+    if (unresolvedThreats > 0) {
       const topThreat = threatItems[0];
       const competitorName = (topThreat?.competitor as any)?.name || 'Unknown';
       actions.push({
         id: 'competitor-threats',
         icon: 'competitor',
-        title: `${competitorThreats} High-Threat Alert${competitorThreats > 1 ? 's' : ''}`,
+        title: `${unresolvedThreats} Unresolved Threat${unresolvedThreats > 1 ? 's' : ''}`,
         detail: topThreat ? `${competitorName}: "${topThreat.summary?.substring(0, 80)}..."` : 'Review and respond to competitor activity',
-        urgency: 'critical',
+        urgency: unresolvedThreats > 5 ? 'critical' : 'high',
         link: '/competitors',
-        linkLabel: 'View Threats',
-        metric: `${competitorThreats} threats`,
+        linkLabel: 'Respond to Threats',
+        metric: `${unresolvedThreats} unresolved`,
       });
     }
 
@@ -203,8 +234,10 @@ export async function GET() {
       actions.push({
         id: 'social-growth',
         icon: 'growth',
-        title: 'Social Growth is Slow Today',
-        detail: `Only +${followerGrowth} followers — generate a new post to boost engagement`,
+        title: 'Social Growth is Slow',
+        detail: followerGrowth === 0
+          ? 'No follower growth data yet — snapshots are being collected'
+          : `Only +${followerGrowth} followers — generate a new post to boost engagement`,
         urgency: 'medium',
         link: '/analytics',
         linkLabel: 'Post Now',
@@ -262,6 +295,7 @@ export async function GET() {
     if (followers > 0) wins.push({ text: 'X Followers (@ScottBottomsCO)', metric: followers.toLocaleString(), link: '/analytics' });
     if (mmdbPipeline > 0) wins.push({ text: 'Active Pipeline Opportunities', metric: mmdbPipeline.toLocaleString(), link: '/' });
     if (publishedContent && publishedContent > 0) wins.push({ text: 'Content Published', metric: publishedContent.toString(), link: '/content' });
+    if (resolvedThreats > 0) wins.push({ text: 'Threats Responded To', metric: resolvedThreats.toString(), link: '/competitors' });
     if (agentRunsToday > 0) wins.push({ text: 'AI Agent Runs Today', metric: agentRunsToday.toString(), link: '/agents' });
 
     return NextResponse.json({
@@ -271,6 +305,7 @@ export async function GET() {
       actions: actions.slice(0, 6),
       wins: wins.slice(0, 6),
       lastUpdated: new Date().toISOString(),
+      dataSources,
     });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error';
