@@ -415,8 +415,44 @@ export async function PUT(req: NextRequest) {
     let newStatus = 'active';
     
     if (action === 'ignore') newStatus = 'ignored';
-    else if (action === 'hide') newStatus = 'hidden';
-    else if (action === 'unhide') newStatus = 'active';
+    else if (action === 'hide') {
+      newStatus = 'hidden';
+      // Autonomously hide the comment natively on Facebook / Instagram 
+      if (id.startsWith('fb_') || id.startsWith('ig_')) {
+        const metaId = id.replace('fb_', '').replace('ig_', '');
+        const token = process.env.META_ACCESS_TOKEN;
+        if (token) {
+          try {
+            await fetch(`https://graph.facebook.com/v25.0/${metaId}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ is_hidden: true, access_token: token })
+            });
+          } catch (e) {
+            console.error('Failed to hide natively on Meta', e);
+          }
+        }
+      }
+    }
+    else if (action === 'unhide') {
+      newStatus = 'active';
+      // Autonomously unhide the comment natively on Facebook / Instagram 
+      if (id.startsWith('fb_') || id.startsWith('ig_')) {
+        const metaId = id.replace('fb_', '').replace('ig_', '');
+        const token = process.env.META_ACCESS_TOKEN;
+        if (token) {
+          try {
+            await fetch(`https://graph.facebook.com/v25.0/${metaId}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ is_hidden: false, access_token: token })
+            });
+          } catch (e) {
+            console.error('Failed to unhide natively on Meta', e);
+          }
+        }
+      }
+    }
     else if (action === 'report') newStatus = 'reported';
     else return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
 

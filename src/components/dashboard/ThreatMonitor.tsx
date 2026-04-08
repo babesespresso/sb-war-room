@@ -274,12 +274,28 @@ export default function ThreatMonitor() {
                         </div>
                         {/* Actions */}
                         <div className="flex flex-col gap-1.5 flex-shrink-0">
-                          <a href={`https://x.com/search?q=${encodeURIComponent(threat.content.substring(0, 80))}&src=typed_query`}
-                            target="_blank" rel="noopener noreferrer"
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-medium transition-all hover:brightness-125"
-                            style={{ background: 'rgba(255,255,255,0.08)', color: 'var(--text-primary)' }}>
-                            <ExternalLink className="w-3 h-3" /> View on X
-                          </a>
+                          {threat.platform === 'facebook' ? (
+                            <a href={`https://facebook.com/${threat.postId.replace('fb_', '')}`}
+                              target="_blank" rel="noopener noreferrer"
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-medium transition-all hover:brightness-125"
+                              style={{ background: 'rgba(24,119,242,0.15)', color: '#60a5fa' }}>
+                              <FacebookIcon className="w-3 h-3" /> View on FB
+                            </a>
+                          ) : threat.platform === 'instagram' ? (
+                            <a href={`https://instagram.com/p/${threat.postId.replace('ig_', '')}`}
+                              target="_blank" rel="noopener noreferrer"
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-medium transition-all hover:brightness-125"
+                              style={{ background: 'rgba(225,48,108,0.15)', color: '#f472b6' }}>
+                              <Instagram className="w-3 h-3" /> View on IG
+                            </a>
+                          ) : (
+                            <a href={`https://x.com/search?q=${encodeURIComponent(threat.content.substring(0, 80))}&src=typed_query`}
+                              target="_blank" rel="noopener noreferrer"
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-medium transition-all hover:brightness-125"
+                              style={{ background: 'rgba(255,255,255,0.08)', color: 'var(--text-primary)' }}>
+                              <ExternalLink className="w-3 h-3" /> View on X
+                            </a>
+                          )}
                           <button onClick={() => toggleHide(threat.id)}
                             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-medium transition-all hover:brightness-125"
                             style={{ background: threat.hidden ? 'rgba(16,185,129,0.2)' : 'rgba(220,38,38,0.15)', color: threat.hidden ? '#6ee7b7' : '#fca5a5' }}>
