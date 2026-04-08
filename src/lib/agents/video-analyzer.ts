@@ -65,19 +65,20 @@ export async function transcribeVideo(videoUrl: string): Promise<{
     throw new Error(`Failed to fetch video from storage: ${videoResponse.status}`);
   }
 
-  const videoBlob = await videoResponse.blob();
-
+  const videoArrayBuffer = await videoResponse.arrayBuffer();
+  
   // Whisper API has a 25MB limit per request.
-  // For larger files we would need to chunk, but for now we enforce upload limits.
   const MAX_WHISPER_SIZE = 25 * 1024 * 1024; // 25MB
-  if (videoBlob.size > MAX_WHISPER_SIZE) {
-    // Extract audio first to reduce file size, or chunk
-    // For now, try sending as-is since many videos compress well as audio
-    console.warn(`[VideoAnalyzer] Video is ${(videoBlob.size / 1024 / 1024).toFixed(1)}MB, Whisper limit is 25MB. Attempting anyway...`);
+  if (videoArrayBuffer.byteLength > MAX_WHISPER_SIZE) {
+    console.warn(`[VideoAnalyzer] Video is ${(videoArrayBuffer.byteLength / 1024 / 1024).toFixed(1)}MB, Whisper limit is 25MB. Attempting anyway...`);
   }
 
+  // Construct a native File object to ensure Node.js fetch properly encodes the multipart boundary.
+  // raw Blobs often hang the OpenAI API connection in Node native fetch.
+  const file = new File([videoArrayBuffer], 'video.mp3', { type: 'audio/mp3' });
+
   const formData = new FormData();
-  formData.append('file', videoBlob, 'video.mp4');
+  formData.append('file', file);
   formData.append('model', 'whisper-1');
   formData.append('response_format', 'verbose_json');
   formData.append('language', 'en');
