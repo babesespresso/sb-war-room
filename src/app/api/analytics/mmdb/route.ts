@@ -57,9 +57,17 @@ export async function GET() {
     let lastWeek = 0;
     let page: GHLContactsResponse = firstPage;
     let pagesScanned = 0;
-    const maxPages = 8; // Cap at 800 contacts scanned to guarantee fast sub-10s response
+    const maxPages = 8; // Cap at 800 contacts
+
+    const startTime = Date.now();
+    const VERCEL_TIMEOUT_THRESHOLD = 8000; // Break at 8 seconds strictly
 
     while (page.contacts && page.contacts.length > 0 && pagesScanned < maxPages) {
+      if (Date.now() - startTime > VERCEL_TIMEOUT_THRESHOLD) {
+        console.warn('MMDB API: Approaching 10s Vercel timeout, breaking early heavily gracefully degraded.');
+        break;
+      }
+      
       pagesScanned++;
       for (const contact of page.contacts) {
         const ts = new Date(contact.dateAdded).getTime();
