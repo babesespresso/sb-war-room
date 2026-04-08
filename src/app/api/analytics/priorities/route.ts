@@ -130,12 +130,25 @@ export async function GET() {
     else if (mmdbGrowth > 0) mmdbScore = 5;
     breakdown.push({ label: 'Supporter Growth', score: mmdbScore, maxScore: 25, status: mmdbScore >= 20 ? 'excellent' : mmdbScore >= 12 ? 'good' : mmdbScore > 0 ? 'warning' : 'critical' });
 
-    // 2. Social Momentum (0-20)
+    // 2. Social Momentum (0-20) — composite: follower growth + engagement + content activity
     let socialScore = 0;
-    if (followerGrowth > 100) socialScore = 20;
-    else if (followerGrowth > 50) socialScore = 15;
-    else if (followerGrowth > 10) socialScore = 8;
-    else if (followerGrowth > 0) socialScore = 3;
+    // Follower growth component (0-8)
+    if (followerGrowth > 100) socialScore += 8;
+    else if (followerGrowth > 50) socialScore += 6;
+    else if (followerGrowth > 10) socialScore += 4;
+    else if (followerGrowth > 0) socialScore += 2;
+    // Engagement rate component (0-6) — rewards active posting that generates interactions
+    if (engagementRate > 2.0) socialScore += 6;
+    else if (engagementRate > 1.0) socialScore += 5;
+    else if (engagementRate > 0.5) socialScore += 4;
+    else if (engagementRate > 0.1) socialScore += 3;
+    else if (engagementRate > 0) socialScore += 1;
+    // Content publishing activity component (0-6) — rewards publishing from the dashboard
+    if (publishedContent >= 10) socialScore += 6;
+    else if (publishedContent >= 5) socialScore += 5;
+    else if (publishedContent >= 3) socialScore += 4;
+    else if (publishedContent >= 1) socialScore += 2;
+    socialScore = Math.min(socialScore, 20); // Cap at max
     breakdown.push({ label: 'Social Momentum', score: socialScore, maxScore: 20, status: socialScore >= 15 ? 'excellent' : socialScore >= 8 ? 'good' : socialScore > 0 ? 'warning' : 'critical' });
 
     // 3. Pipeline Conversion (0-20)

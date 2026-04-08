@@ -69,7 +69,7 @@ export default function TodaysPriorities() {
   const router = useRouter();
   const [data, setData] = useState<PriorityData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [showBreakdown, setShowBreakdown] = useState(false);
+  const [showBreakdown, setShowBreakdown] = useState(true);
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
 
   useEffect(() => {
