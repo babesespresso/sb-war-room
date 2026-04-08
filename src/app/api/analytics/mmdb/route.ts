@@ -57,7 +57,7 @@ export async function GET() {
     let lastWeek = 0;
     let page: GHLContactsResponse = firstPage;
     let pagesScanned = 0;
-    const maxPages = 15; // Cap at 1,500 contacts scanned to keep response fast
+    const maxPages = 8; // Cap at 800 contacts scanned to guarantee fast sub-10s response
 
     while (page.contacts && page.contacts.length > 0 && pagesScanned < maxPages) {
       pagesScanned++;
@@ -103,8 +103,9 @@ export async function GET() {
       if (pipelinesRes.ok) {
         const pipelinesData = await pipelinesRes.json();
         const pipelines = pipelinesData.pipelines || [];
-        // Fetch opportunity counts for each pipeline
-        for (const pipeline of pipelines) {
+        
+        // Parallelize opportunity counts for each pipeline
+        const opportunityPromises = pipelines.map(async (pipeline: any) => {
           try {
             const oppRes = await fetch(
               `${GHL_BASE_URL}/pipelines/${pipeline.id}/opportunities/?limit=1`,
@@ -112,12 +113,16 @@ export async function GET() {
             );
             if (oppRes.ok) {
               const oppData = await oppRes.json();
-              pipelineTotal += oppData.meta?.total || 0;
+              return oppData.meta?.total || 0;
             }
           } catch {
             // skip individual pipeline errors
           }
-        }
+          return 0;
+        });
+
+        const totals = await Promise.all(opportunityPromises);
+        pipelineTotal = totals.reduce((sum, current) => sum + current, 0);
       }
     } catch {
       // Pipeline data is supplementary
