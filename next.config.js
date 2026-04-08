@@ -3,6 +3,11 @@ const nextConfig = {
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: '*.supabase.co' },
+      { protocol: 'https', hostname: '*.cdninstagram.com' },
+      { protocol: 'https', hostname: '*.fbcdn.net' },
+      { protocol: 'https', hostname: 'scontent-*.cdninstagram.com' },
+      { protocol: 'https', hostname: 'pbs.twimg.com' },
+      { protocol: 'https', hostname: 'abs.twimg.com' }
     ],
   },
   async headers() {
