@@ -1,0 +1,21 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron?agent=daily_brief",
+      "schedule": "30 13 * * *"
+    },
+    {
+      "path": "/api/cron?agent=competitor_monitor",
+      "schedule": "0 */4 * * *"
+    },
+    {
+      "path": "/api/cron?agent=news_pulse",
+      "schedule": "0 */2 * * *"
+    }
+  ],
+  "functions": {
+    "src/app/api/**/*.ts": {
+      "maxDuration": 60
+    }
+  }
+}

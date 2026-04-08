@@ -1,0 +1,188 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&family=Montserrat:wght@600;700;800;900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Aerospace True Black Theme */
+  --navy-900: #000000; /* true black */
+  --navy-800: #0a0a0a; /* neutral-950 */
+  --navy-700: #171717; /* neutral-900 */
+  --navy-600: #262626; /* neutral-800 */
+  --navy-500: #404040; /* neutral-700 */
+  --navy-400: #525252; /* neutral-600 */
+  
+  /* Primary Tactical Colors */
+  --campaign-red: #e11d48; /* rose-600 / vibrant crimson */
+  --campaign-red-hover: #be123c; /* rose-700 */
+  --campaign-gold: #f59e0b; /* amber-500 */
+  --campaign-green: #10b981; /* emerald-500 */
+  --campaign-blue: #3b82f6; /* blue-500 */
+  
+  /* Core Surfaces */
+  --surface-0: #000000; /* Pure black background */
+  --surface-1: rgba(15, 15, 15, 0.7); /* Translucent neutral black for cards */
+  --surface-2: rgba(30, 30, 30, 0.5); /* Elevated elements */
+  --surface-3: #1a1a1a;
+  
+  /* Typography */
+  --text-primary: #f8fafc; /* slate-50 */
+  --text-secondary: #cbd5e1; /* slate-300 */
+  --text-muted: #94a3b8; /* slate-400 */
+  
+  /* Borders */
+  --border-color: rgba(255, 255, 255, 0.08);
+  --border-light: rgba(255, 255, 255, 0.15);
+
+  /* Glows */
+  --glow-red: rgba(225, 29, 72, 0.15);
+  --glow-blue: rgba(59, 130, 246, 0.15);
+  --glow-gold: rgba(245, 158, 11, 0.15);
+  --glow-cyan: rgba(34, 211, 238, 0.2);
+}
+
+.text-shadow-glow {
+  text-shadow: 0 0 8px rgba(255, 255, 255, 0.3);
+}
+.text-shadow-red {
+  text-shadow: 0 0 10px rgba(225, 29, 72, 0.8), 0 0 20px rgba(225, 29, 72, 0.4);
+}
+.text-shadow-gold {
+  text-shadow: 0 0 10px rgba(245, 158, 11, 0.8), 0 0 20px rgba(245, 158, 11, 0.4);
+}
+.text-shadow-blue {
+  text-shadow: 0 0 10px rgba(59, 130, 246, 0.8), 0 0 20px rgba(59, 130, 246, 0.4);
+}
+.text-shadow-green {
+  text-shadow: 0 0 10px rgba(16, 185, 129, 0.8), 0 0 20px rgba(16, 185, 129, 0.4);
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--surface-0);
+  background-image: radial-gradient(circle at 50% -20%, #111111 0%, #000000 100%);
+  background-attachment: fixed;
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3 {
+  font-family: 'Montserrat', sans-serif;
+}
+
+code, pre, .font-mono {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--navy-600);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--navy-500);
+}
+
+/* Base Card Style for Glassmorphism (HUD Updated) */
+.glass-panel, .hud-panel {
+  background: var(--surface-1);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid var(--border-color);
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.6), 0 4px 6px -1px rgba(0, 0, 0, 0.4);
+}
+
+.glass-panel::after, .hud-panel::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+}
+
+/* Sub-card within a panel */
+.glass-subpanel, .hud-subpanel {
+  background: var(--surface-2);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Stat cards glow effect */
+.stat-card {
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease-out;
+}
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--campaign-red), transparent);
+  opacity: 0;
+  transition: opacity 0.3s ease-out;
+}
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 15px -3px rgba(225, 29, 72, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.5);
+}
+.stat-card:hover::before {
+  opacity: 1;
+}
+
+/* Threat level badges */
+.threat-critical { background: rgba(225, 29, 72, 0.15); color: #fda4af; border: 1px solid rgba(225, 29, 72, 0.3); }
+.threat-high { background: rgba(245, 158, 11, 0.15); color: #fde047; border: 1px solid rgba(245, 158, 11, 0.3); }
+.threat-medium { background: rgba(59, 130, 246, 0.15); color: #93c5fd; border: 1px solid rgba(59, 130, 246, 0.3); }
+.threat-low { background: rgba(16, 185, 129, 0.15); color: #6ee7b7; border: 1px solid rgba(16, 185, 129, 0.3); }
+
+/* Status badges */
+.status-pending { background: rgba(245, 158, 11, 0.15); color: #fde047; border: 1px solid rgba(245, 158, 11, 0.3); }
+.status-approved { background: rgba(16, 185, 129, 0.15); color: #6ee7b7; border: 1px solid rgba(16, 185, 129, 0.3); }
+.status-rejected { background: rgba(225, 29, 72, 0.15); color: #fda4af; border: 1px solid rgba(225, 29, 72, 0.3); }
+.status-published { background: rgba(59, 130, 246, 0.15); color: #93c5fd; border: 1px solid rgba(59, 130, 246, 0.3); }
+.status-draft { background: rgba(100, 116, 139, 0.15); color: #cbd5e1; border: 1px solid rgba(100, 116, 139, 0.3); }
+
+/* Pulse animation for live indicators */
+@keyframes pulse-live {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+  50% { opacity: 0.6; box-shadow: 0 0 4px 2px rgba(16, 185, 129, 0.0); }
+}
+.pulse-live {
+  animation: pulse-live 2s ease-in-out infinite;
+}
+
+/* Content fade in / HUD slide */
+@keyframes fadeInSlide {
+  from { opacity: 0; transform: translateY(12px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.animate-fade-in {
+  animation: fadeInSlide 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+.animate-fade-in-delay-1 { animation-delay: 0.05s; opacity: 0; }
+.animate-fade-in-delay-2 { animation-delay: 0.1s; opacity: 0; }
+.animate-fade-in-delay-3 { animation-delay: 0.15s; opacity: 0; }
+.animate-fade-in-delay-4 { animation-delay: 0.2s; opacity: 0; }

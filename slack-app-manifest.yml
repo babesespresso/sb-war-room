@@ -1,0 +1,63 @@
+# ============================================================
+# WARBIRD Slack App Manifest
+# ============================================================
+# Go to https://api.slack.com/apps → Create New App → From Manifest
+# Paste this YAML manifest to create the Warbird bot.
+# After creation, install to your workspace and grab the tokens.
+# ============================================================
+
+display_information:
+  name: Warbird
+  description: Campaign Intelligence Engine by Multitude Media
+  background_color: "#1a3147"
+  long_description: |
+    Warbird is an AI-powered campaign intelligence and content engine.
+    It monitors competitors, tracks public sentiment, generates daily
+    content, and delivers everything through Slack as the primary
+    War Room interface.
+
+features:
+  app_home:
+    home_tab_enabled: true
+    messages_tab_enabled: true
+    messages_tab_read_only_enabled: false
+  bot_user:
+    display_name: Warbird
+    always_online: true
+  slash_commands:
+    - command: /warbird
+      url: https://sb-war-room.vercel.app/api/slack/commands
+      description: Campaign intelligence commands
+      usage_hint: "[brief | draft <topic> | status | rapid <context> | heatmap]"
+      should_escape: false
+
+oauth_config:
+  scopes:
+    bot:
+      - channels:history
+      - channels:read
+      - chat:write
+      - commands
+      - files:read
+      - groups:history
+      - groups:read
+      - im:history
+      - im:read
+      - im:write
+      - reactions:read
+      - users:read
+
+settings:
+  event_subscriptions:
+    request_url: https://sb-war-room.vercel.app/api/slack/events
+    bot_events:
+      - app_mention
+      - message.channels
+      - message.groups
+      - reaction_added
+  interactivity:
+    is_enabled: true
+    request_url: https://sb-war-room.vercel.app/api/slack/interactions
+  org_deploy_enabled: false
+  socket_mode_enabled: false
+  token_rotation_enabled: false
