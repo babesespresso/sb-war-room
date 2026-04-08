@@ -163,41 +163,53 @@ export async function processVideoTrainingSource(
 
   try {
     // 2. Update status to transcribing
-    await db.from('video_training_sources')
+    console.log(`[VideoAnalyzer] Setting status to 'transcribing' for ${videoId}...`);
+    const { error: statusErr1 } = await db.from('video_training_sources')
       .update({ processing_status: 'transcribing', updated_at: new Date().toISOString() })
       .eq('id', videoId);
+    if (statusErr1) {
+      throw new Error(`DB update to 'transcribing' failed: ${statusErr1.message}`);
+    }
 
     // 3. Transcribe
     console.log(`[VideoAnalyzer] Transcribing video: ${video.title}`);
     const { transcript, segments } = await transcribeVideo(video.video_url);
+    console.log(`[VideoAnalyzer] Transcription complete: ${transcript.length} chars, ${segments.length} segments`);
 
     // 4. Save transcript, update status to analyzing
-    await db.from('video_training_sources')
+    console.log(`[VideoAnalyzer] Saving transcript and setting status to 'analyzing'...`);
+    const { error: statusErr2 } = await db.from('video_training_sources')
       .update({
         transcript,
-        transcript_segments: segments,
         processing_status: 'analyzing',
         updated_at: new Date().toISOString(),
       })
       .eq('id', videoId);
+    if (statusErr2) {
+      throw new Error(`DB update to 'analyzing' failed: ${statusErr2.message}`);
+    }
 
     // 5. Analyze transcript with Claude
-    console.log(`[VideoAnalyzer] Analyzing transcript: ${transcript.length} chars`);
+    console.log(`[VideoAnalyzer] Analyzing transcript with Claude...`);
     const analysis = await analyzeTranscript(transcript, video.title, tenantId);
+    console.log(`[VideoAnalyzer] Analysis complete: ${analysis.talking_points.length} talking points, ${analysis.policy_positions.length} positions`);
 
     // 6. Save analysis results, mark as completed
-    await db.from('video_training_sources')
+    console.log(`[VideoAnalyzer] Saving analysis results and marking as 'completed'...`);
+    const { error: statusErr3 } = await db.from('video_training_sources')
       .update({
         extracted_talking_points: analysis.talking_points,
         extracted_voice_patterns: analysis.voice_patterns,
         extracted_policy_positions: analysis.policy_positions,
         processing_status: 'completed',
-        processed_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
       .eq('id', videoId);
+    if (statusErr3) {
+      throw new Error(`DB update to 'completed' failed: ${statusErr3.message}`);
+    }
 
-    console.log(`[VideoAnalyzer] Completed: ${analysis.talking_points.length} talking points, ${analysis.policy_positions.length} positions extracted`);
+    console.log(`[VideoAnalyzer] ✅ Completed: ${analysis.talking_points.length} talking points, ${analysis.policy_positions.length} positions extracted`);
 
     return {
       success: true,
@@ -206,14 +218,18 @@ export async function processVideoTrainingSource(
       transcript_length: transcript.length,
     };
   } catch (error: any) {
+    console.error(`[VideoAnalyzer] ❌ Failed for ${videoId}:`, error.message);
     // Mark as failed
-    await db.from('video_training_sources')
+    const { error: failErr } = await db.from('video_training_sources')
       .update({
         processing_status: 'failed',
         processing_error: error.message,
         updated_at: new Date().toISOString(),
       })
       .eq('id', videoId);
+    if (failErr) {
+      console.error(`[VideoAnalyzer] Failed to mark as failed:`, failErr.message);
+    }
 
     throw error;
   }
