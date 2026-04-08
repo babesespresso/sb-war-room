@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse, after } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { waitUntil } from '@vercel/functions';
 
 // ... other imports ...
 import { createServiceClient } from '@/lib/supabase/client';
@@ -76,12 +77,12 @@ export async function POST(req: NextRequest) {
       processing_status: 'uploaded',
     });
 
-    // Use Next.js 15 `after` API to ensure the lambda doesn't terminate before transcribing completes
-    after(() => {
+    // Use Vercel's native waitUntil to keep lambda alive for background processing
+    waitUntil(
       processVideoTrainingSource(record.id, TENANT_ID).catch((err: any) => {
         console.error(`[VideoAPI] Processing failed for ${record.id}:`, err.message);
-      });
-    });
+      })
+    );
 
     return NextResponse.json({
       success: true,
