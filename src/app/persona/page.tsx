@@ -824,7 +824,18 @@ export default function PersonaPage() {
                       const ppCount = video.extracted_policy_positions?.length || 0;
 
                       return (
-                        <div key={video.id} className="glass-subpanel shadow-inner rounded-xl border border-white/5 overflow-hidden">
+                        <div key={video.id} className="glass-subpanel shadow-inner rounded-xl border border-white/5 overflow-hidden relative">
+                          
+                          {/* Transcribing / Completed Surge Effect at the Bottom */}
+                          {(video.processing_status === 'transcribing' || video.processing_status === 'analyzing') && (
+                            <div className="absolute bottom-0 left-0 w-full h-[3px] bg-amber-500/20 z-10 overflow-hidden">
+                              <div className="absolute inset-0 bg-amber-400 opacity-60 w-1/2 -translate-x-full animate-[shimmer_2s_infinite]" style={{ filter: 'drop-shadow(0 0 8px rgba(251,191,36,0.8))' }} />
+                            </div>
+                          )}
+                          {isComplete && (
+                            <div className="absolute bottom-0 left-0 w-full h-[2px] bg-emerald-500 z-10" style={{ filter: 'drop-shadow(0 -1px 8px rgba(16,185,129,0.7))' }} />
+                          )}
+
                           {/* Video Header */}
                           <div className="p-4 flex items-center gap-3">
                             <div className="p-2 rounded-lg" style={{ background: status.bg, border: `1px solid ${status.border}` }}>
