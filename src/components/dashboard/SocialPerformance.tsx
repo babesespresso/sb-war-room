@@ -8,6 +8,7 @@ import {
 import XIcon from '@/components/icons/XIcon';
 import FacebookIcon from '@/components/icons/FacebookIcon';
 import InfoTooltip from '@/components/ui/InfoTooltip';
+import NextImage from 'next/image';
 
 interface FBPost {
   id: string;
@@ -372,7 +373,7 @@ function FacebookTab({ data }: { data: MetaData['facebook'] }) {
               style={{ background: 'var(--surface-2)', border: '1px solid var(--border-color)' }}>
               <div className="flex items-start gap-3">
                 {post.image && (
-                  <img src={post.image} alt="" className="w-16 h-16 rounded-lg object-cover flex-shrink-0" />
+                  <NextImage src={post.image} alt="" width={64} height={64} className="w-16 h-16 rounded-lg object-cover flex-shrink-0" />
                 )}
                 <div className="flex-1 min-w-0">
                   <p className="text-sm leading-relaxed line-clamp-2" style={{ color: 'var(--text-secondary)' }}>
@@ -427,7 +428,7 @@ function InstagramTab({ data }: { data: MetaData['instagram'] }) {
       {/* Profile Header */}
       <div className="p-4 rounded-xl flex items-center gap-4" style={{ background: 'var(--surface-2)', border: '1px solid var(--border-color)' }}>
         {data.picture && (
-          <img src={data.picture} alt={data.username} className="w-14 h-14 rounded-full border-2" style={{ borderColor: '#e1306c' }} />
+          <NextImage src={data.picture} alt={data.username} width={56} height={56} className="w-14 h-14 rounded-full border-2" style={{ borderColor: '#e1306c' }} />
         )}
         <div>
           <p className="text-sm font-semibold">@{data.username}</p>
@@ -447,7 +448,7 @@ function InstagramTab({ data }: { data: MetaData['instagram'] }) {
             <a key={post.id} href={post.url} target="_blank" rel="noopener noreferrer"
               className="rounded-lg overflow-hidden group/post relative aspect-square" style={{ background: 'var(--surface-2)' }}>
               {post.image ? (
-                <img src={post.image} alt="" className="w-full h-full object-cover" />
+                <NextImage src={post.image} alt="" fill sizes="(max-width: 768px) 50vw, 20vw" className="object-cover" />
               ) : (
                 <div className="w-full h-full flex items-center justify-center">
                   <Image className="w-8 h-8 text-slate-500" />

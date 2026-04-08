@@ -104,7 +104,9 @@ export async function GET() {
           id: post.id,
           caption: post.caption || '',
           media_type: post.media_type,
-          image: post.media_url || post.thumbnail_url || null,
+          image: post.media_type === 'VIDEO' 
+            ? (post.thumbnail_url || post.media_url || null)
+            : (post.media_url || post.thumbnail_url || null),
           timestamp: post.timestamp,
           likes: post.like_count || 0,
           comments: post.comments_count || 0,
