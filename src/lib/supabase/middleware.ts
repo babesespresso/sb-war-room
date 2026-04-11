@@ -31,7 +31,7 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const isAuthRoute = request.nextUrl.pathname.startsWith('/login') || request.nextUrl.pathname.startsWith('/api/auth');
+  const isAuthRoute = request.nextUrl.pathname.startsWith('/login') || request.nextUrl.pathname.startsWith('/api/auth') || request.nextUrl.pathname.startsWith('/auth/callback');
 
   // Protect all non-auth routes
   if (!user && !isAuthRoute) {
@@ -44,7 +44,8 @@ export async function updateSession(request: NextRequest) {
   }
 
   // If logged in and trying to access login, redirect to dashboard
-  if (user && request.nextUrl.pathname === '/login') {
+  // Exception: invite flow — user needs to set their password first
+  if (user && request.nextUrl.pathname === '/login' && request.nextUrl.searchParams.get('flow') !== 'invite') {
     const url = request.nextUrl.clone();
     url.pathname = '/';
     return NextResponse.redirect(url);

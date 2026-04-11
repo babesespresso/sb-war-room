@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createBrowserClient } from '@/lib/supabase/client';
-import { Shield, Loader2, Lock, Crosshair, CheckCircle2 } from 'lucide-react';
+import { Shield, Loader2, Lock, Crosshair, CheckCircle2, KeyRound } from 'lucide-react';
 import { Turnstile } from '@marsidev/react-turnstile';
 import { Black_Ops_One } from 'next/font/google';
 
@@ -17,6 +17,71 @@ export default function LoginPage() {
   const [cfVerified, setCfVerified] = useState(false);
   const [cfToken, setCfToken] = useState<string | null>(null);
   const router = useRouter();
+
+  // Invite flow state
+  const [isInviteFlow, setIsInviteFlow] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [settingPassword, setSettingPassword] = useState(false);
+  const [passwordSuccess, setPasswordSuccess] = useState(false);
+
+  // Detect invite flow — listen for PASSWORD_RECOVERY event and #invited hash
+  useEffect(() => {
+    const supabase = createBrowserClient();
+
+    // Check URL for ?flow=invite (set by our /auth/callback route)
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('flow') === 'invite') {
+        setIsInviteFlow(true);
+        // Clean the query param from the URL without triggering a navigation
+        window.history.replaceState(null, '', window.location.pathname);
+      }
+    }
+
+    // Listen for Supabase auth events — PASSWORD_RECOVERY fires for both invite and reset flows
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        setIsInviteFlow(true);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  // Handle setting password for invited user
+  const handleSetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+
+    if (newPassword.length < 6) {
+      setError('Password must be at least 6 characters');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+
+    setSettingPassword(true);
+    const supabase = createBrowserClient();
+    const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
+
+    if (updateError) {
+      setError(updateError.message);
+      setSettingPassword(false);
+    } else {
+      setPasswordSuccess(true);
+      setSettingPassword(false);
+      // Brief pause so user sees the success, then redirect
+      setTimeout(() => {
+        router.push('/');
+        router.refresh();
+      }, 1500);
+    }
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -315,64 +380,152 @@ export default function LoginPage() {
             </div>
           </div>
 
-          <form onSubmit={handleLogin} className="relative z-10 space-y-5 transition-all duration-1000" style={{ filter: cfVerified ? 'none' : 'blur(4px)', opacity: cfVerified ? 1 : 0.6, pointerEvents: cfVerified ? 'auto' : 'none' }}>
-            {error && (
-              <div className="p-3 rounded-lg flex items-start gap-2 bg-red-950/60 border border-red-500/30 backdrop-blur-md">
-                <Shield className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
-                <p className="text-sm text-red-200 leading-snug">{error}</p>
+          {isInviteFlow ? (
+            /* ── Invite Flow: Set Password Form ── */
+            <form onSubmit={handleSetPassword} className="relative z-10 space-y-5 transition-all duration-500">
+              {/* Invite Banner */}
+              <div className="p-3 rounded-lg flex items-start gap-2 bg-emerald-950/40 border border-emerald-500/30 backdrop-blur-md">
+                <KeyRound className="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0" />
+                <p className="text-sm text-emerald-200 leading-snug">
+                  Welcome, Operative. Set your cipher key to activate your credentials.
+                </p>
               </div>
-            )}
-            
-            <div className="space-y-1.5 relative group">
-              <label className="text-[9px] uppercase tracking-[0.2em] font-bold text-red-500/70 pl-1 flex items-center gap-2">
-                <span className="w-1.5 h-1.5 bg-red-500/50 rounded-full animate-pulse" />
-                Operator Clearance Code (Email)
-              </label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="w-full px-4 py-3 rounded-lg text-sm transition-all outline-none border border-red-900/30 bg-black/40 text-red-100 placeholder:text-red-900/50 focus:border-red-500 focus:bg-black/60 shadow-inner"
-                placeholder="operatives@campaign.hq"
-              />
-            </div>
-            
-            <div className="space-y-1.5 relative group">
-              <label className="text-[9px] uppercase tracking-[0.2em] font-bold text-red-500/70 pl-1 flex items-center gap-2">
-                <span className="w-1.5 h-1.5 bg-red-500/50 rounded-full" />
-                Cipher Key (Password)
-              </label>
-              <div className="relative">
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  className="w-full px-4 py-3 rounded-lg text-sm transition-all outline-none border border-red-900/30 bg-black/40 text-red-100 placeholder:text-red-900/50 focus:border-red-500 focus:bg-black/60 font-mono tracking-widest shadow-inner"
-                  placeholder="CLASSIFIED"
-                />
-                <Lock className="w-4 h-4 absolute right-4 top-1/2 -translate-y-1/2 text-red-900/50" />
-              </div>
-            </div>
 
-            <button
-              type="submit"
-              disabled={loading || !cfVerified}
-              className="w-full mt-6 py-4 rounded-lg text-sm font-black tracking-[0.2em] uppercase transition-all flex items-center justify-center gap-2 relative overflow-hidden group border border-red-500/30 hover:border-red-400"
-              style={{ background: 'linear-gradient(135deg, rgba(185,28,28,0.7), rgba(153,27,27,0.5))', color: '#fff', textShadow: '0 2px 4px rgba(0,0,0,0.5)', boxShadow: 'inset 0 1px 1px rgba(255,255,255,0.2)' }}
-            >
-              <div className="absolute inset-0 bg-[linear-gradient(45deg,transparent_25%,rgba(255,255,255,0.1)_50%,transparent_75%)] bg-[length:250%_250%,100%_100%] animate-[bg-pan_3s_linear_infinite] opacity-0 group-hover:opacity-100 transition-opacity" />
-              {loading ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  <span>Decrypting...</span>
-                </>
-              ) : (
-                'Log In'
+              {passwordSuccess && (
+                <div className="p-3 rounded-lg flex items-start gap-2 bg-emerald-950/60 border border-emerald-500/30 backdrop-blur-md">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0" />
+                  <p className="text-sm text-emerald-200 leading-snug">Credentials established. Redirecting to HQ...</p>
+                </div>
               )}
-            </button>
-          </form>
+
+              {error && (
+                <div className="p-3 rounded-lg flex items-start gap-2 bg-red-950/60 border border-red-500/30 backdrop-blur-md">
+                  <Shield className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
+                  <p className="text-sm text-red-200 leading-snug">{error}</p>
+                </div>
+              )}
+
+              <div className="space-y-1.5 relative group">
+                <label className="text-[9px] uppercase tracking-[0.2em] font-bold text-emerald-500/70 pl-1 flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 bg-emerald-500/50 rounded-full animate-pulse" />
+                  New Cipher Key (Password)
+                </label>
+                <div className="relative">
+                  <input
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    required
+                    minLength={6}
+                    className="w-full px-4 py-3 rounded-lg text-sm transition-all outline-none border border-emerald-900/30 bg-black/40 text-emerald-100 placeholder:text-emerald-900/50 focus:border-emerald-500 focus:bg-black/60 font-mono tracking-widest shadow-inner"
+                    placeholder="MIN 6 CHARACTERS"
+                  />
+                  <Lock className="w-4 h-4 absolute right-4 top-1/2 -translate-y-1/2 text-emerald-900/50" />
+                </div>
+              </div>
+
+              <div className="space-y-1.5 relative group">
+                <label className="text-[9px] uppercase tracking-[0.2em] font-bold text-emerald-500/70 pl-1 flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 bg-emerald-500/50 rounded-full" />
+                  Confirm Cipher Key
+                </label>
+                <div className="relative">
+                  <input
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    required
+                    minLength={6}
+                    className="w-full px-4 py-3 rounded-lg text-sm transition-all outline-none border border-emerald-900/30 bg-black/40 text-emerald-100 placeholder:text-emerald-900/50 focus:border-emerald-500 focus:bg-black/60 font-mono tracking-widest shadow-inner"
+                    placeholder="REPEAT CIPHER KEY"
+                  />
+                  <Lock className="w-4 h-4 absolute right-4 top-1/2 -translate-y-1/2 text-emerald-900/50" />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={settingPassword || passwordSuccess || !newPassword || !confirmPassword}
+                className="w-full mt-6 py-4 rounded-lg text-sm font-black tracking-[0.2em] uppercase transition-all flex items-center justify-center gap-2 relative overflow-hidden group border border-emerald-500/30 hover:border-emerald-400 disabled:opacity-50"
+                style={{ background: 'linear-gradient(135deg, rgba(5,150,105,0.7), rgba(4,120,87,0.5))', color: '#fff', textShadow: '0 2px 4px rgba(0,0,0,0.5)', boxShadow: 'inset 0 1px 1px rgba(255,255,255,0.2)' }}
+              >
+                <div className="absolute inset-0 bg-[linear-gradient(45deg,transparent_25%,rgba(255,255,255,0.1)_50%,transparent_75%)] bg-[length:250%_250%,100%_100%] animate-[bg-pan_3s_linear_infinite] opacity-0 group-hover:opacity-100 transition-opacity" />
+                {settingPassword ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <span>Establishing Credentials...</span>
+                  </>
+                ) : passwordSuccess ? (
+                  <>
+                    <CheckCircle2 className="w-5 h-5" />
+                    <span>Credentials Set</span>
+                  </>
+                ) : (
+                  'Activate Credentials'
+                )}
+              </button>
+            </form>
+          ) : (
+            /* ── Normal Login Form ── */
+            <form onSubmit={handleLogin} className="relative z-10 space-y-5 transition-all duration-1000" style={{ filter: cfVerified ? 'none' : 'blur(4px)', opacity: cfVerified ? 1 : 0.6, pointerEvents: cfVerified ? 'auto' : 'none' }}>
+              {error && (
+                <div className="p-3 rounded-lg flex items-start gap-2 bg-red-950/60 border border-red-500/30 backdrop-blur-md">
+                  <Shield className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
+                  <p className="text-sm text-red-200 leading-snug">{error}</p>
+                </div>
+              )}
+            
+              <div className="space-y-1.5 relative group">
+                <label className="text-[9px] uppercase tracking-[0.2em] font-bold text-red-500/70 pl-1 flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 bg-red-500/50 rounded-full animate-pulse" />
+                  Operator Clearance Code (Email)
+                </label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  className="w-full px-4 py-3 rounded-lg text-sm transition-all outline-none border border-red-900/30 bg-black/40 text-red-100 placeholder:text-red-900/50 focus:border-red-500 focus:bg-black/60 shadow-inner"
+                  placeholder="operatives@campaign.hq"
+                />
+              </div>
+            
+              <div className="space-y-1.5 relative group">
+                <label className="text-[9px] uppercase tracking-[0.2em] font-bold text-red-500/70 pl-1 flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 bg-red-500/50 rounded-full" />
+                  Cipher Key (Password)
+                </label>
+                <div className="relative">
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    className="w-full px-4 py-3 rounded-lg text-sm transition-all outline-none border border-red-900/30 bg-black/40 text-red-100 placeholder:text-red-900/50 focus:border-red-500 focus:bg-black/60 font-mono tracking-widest shadow-inner"
+                    placeholder="CLASSIFIED"
+                  />
+                  <Lock className="w-4 h-4 absolute right-4 top-1/2 -translate-y-1/2 text-red-900/50" />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading || !cfVerified}
+                className="w-full mt-6 py-4 rounded-lg text-sm font-black tracking-[0.2em] uppercase transition-all flex items-center justify-center gap-2 relative overflow-hidden group border border-red-500/30 hover:border-red-400"
+                style={{ background: 'linear-gradient(135deg, rgba(185,28,28,0.7), rgba(153,27,27,0.5))', color: '#fff', textShadow: '0 2px 4px rgba(0,0,0,0.5)', boxShadow: 'inset 0 1px 1px rgba(255,255,255,0.2)' }}
+              >
+                <div className="absolute inset-0 bg-[linear-gradient(45deg,transparent_25%,rgba(255,255,255,0.1)_50%,transparent_75%)] bg-[length:250%_250%,100%_100%] animate-[bg-pan_3s_linear_infinite] opacity-0 group-hover:opacity-100 transition-opacity" />
+                {loading ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <span>Decrypting...</span>
+                  </>
+                ) : (
+                  'Log In'
+                )}
+              </button>
+            </form>
+          )}
           
           <div className="mt-8 pt-4 border-t border-red-900/30 transition-all duration-1000" style={{ filter: cfVerified ? 'none' : 'blur(2px)', opacity: cfVerified ? 1 : 0.6 }}>
             <p className="text-[9px] text-center text-red-500/50 font-mono uppercase tracking-widest flex flex-col gap-1">
