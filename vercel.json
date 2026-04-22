@@ -11,6 +11,14 @@
     {
       "path": "/api/cron?agent=news_pulse",
       "schedule": "0 */2 * * *"
+    },
+    {
+      "path": "/api/cron?agent=sentiment_analyzer",
+      "schedule": "15 */6 * * *"
+    },
+    {
+      "path": "/api/cron?agent=performance_tracker",
+      "schedule": "45 */3 * * *"
     }
   ],
   "functions": {

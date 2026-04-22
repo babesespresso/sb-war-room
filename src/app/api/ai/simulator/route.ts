@@ -11,8 +11,10 @@ export async function POST(req: Request) {
     const { opponent, history, message } = await req.json();
 
     if (!process.env.ANTHROPIC_API_KEY) {
-      // Mock mode if key is broken
-      return NextResponse.json({ reply: `[SIMULATED] As ${opponent}, I completely reject that premise. Your policies are harmful and ignore the real issues facing Colorado families.` });
+      return NextResponse.json(
+        { error: 'ANTHROPIC_API_KEY not configured' },
+        { status: 503 }
+      );
     }
 
     const systemPrompt = `You are a highly advanced political debate simulator for the 2026 Colorado Gubernatorial election. 
@@ -45,9 +47,11 @@ If you are a Generic Hostile Journalist, interrupt and demand yes-or-no answers,
     formattedMessages.push({ role: 'user', content: message });
 
     const response = await anthropic.messages.create({
-      model: 'claude-3-haiku-20240307',
+      model: 'claude-sonnet-4-20250514',
       max_tokens: 300,
-      system: systemPrompt,
+      system: [
+        { type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } } as any,
+      ],
       messages: formattedMessages,
       temperature: 0.7
     });

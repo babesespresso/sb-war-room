@@ -69,7 +69,7 @@ export async function getXAnalytics() {
   const accessToken = (process.env.TWITTER_ACCESS_TOKEN || '').trim();
   const apiSecret = (process.env.TWITTER_API_SECRET || '').trim();
   const accessSecret = (process.env.TWITTER_ACCESS_SECRET || '').trim();
-  
+
   if (!apiKey || !accessToken || !apiSecret || !accessSecret) {
     return {
       connected: false,
@@ -78,7 +78,6 @@ export async function getXAnalytics() {
     };
   }
 
-  // Fetch profile
   const profile = await twitterGet('https://api.twitter.com/1.1/account/verify_credentials.json', {});
 
   const followers = profile.followers_count || 0;
@@ -87,36 +86,77 @@ export async function getXAnalytics() {
   const listed = profile.listed_count || 0;
   const favourites = profile.favourites_count || 0;
 
-  const estimatedReach = Math.round(followers * 3.2);
-  const estimatedEngagements = favourites + listed;
-  const avgEngagementRate = followers > 0 ? ((estimatedEngagements / totalTweets) / followers * 100).toFixed(2) : '0.00';
-
   const createdAt = new Date(profile.created_at);
   const daysSinceCreation = Math.floor((Date.now() - createdAt.getTime()) / (1000 * 60 * 60 * 24));
-  const avgTweetsPerDay = totalTweets / Math.max(daysSinceCreation, 1);
 
-  const engagementData = [];
-  const now = new Date();
-  for (let i = 13; i >= 0; i--) {
-    const date = new Date(now);
-    date.setDate(date.getDate() - i);
-    const dayLabel = date.toISOString().split('T')[0];
-    
-    const dailyTweets = Math.max(1, Math.round(avgTweetsPerDay + (Math.random() * 4 - 2)));
-    const dailyImpressions = Math.round(followers * (0.02 + Math.random() * 0.04));
-    const dailyEngagements = Math.round(dailyImpressions * (0.01 + Math.random() * 0.04));
-    const dailyFollowerChange = Math.round((Math.random() * 30) - 5);
+  // Real 14-day engagement series from X API v2 user timeline with public_metrics.
+  // Each tweet exposes likes, retweets, replies, quotes, impressions, bookmarks.
+  let engagementData: Array<{ date: string; impressions: number; engagements: number; tweets: number; followerChange: number }> = [];
+  let engagementSource: 'x_api_v2' | 'unavailable' = 'unavailable';
+  let engagementError: string | null = null;
 
-    engagementData.push({
-      date: dayLabel,
-      impressions: dailyImpressions,
-      engagements: dailyEngagements,
-      tweets: dailyTweets,
-      followerChange: dailyFollowerChange,
-    });
+  try {
+    const userId = profile.id_str;
+    if (!userId) throw new Error('Missing profile id_str');
+
+    const start = new Date();
+    start.setUTCHours(0, 0, 0, 0);
+    start.setUTCDate(start.getUTCDate() - 13);
+
+    const params: Record<string, string> = {
+      max_results: '100',
+      'tweet.fields': 'created_at,public_metrics,non_public_metrics,organic_metrics',
+      exclude: 'retweets,replies',
+      start_time: start.toISOString(),
+    };
+
+    const tweetsResp = await twitterGet(
+      `https://api.twitter.com/2/users/${userId}/tweets`,
+      params
+    );
+
+    const buckets = new Map<string, { impressions: number; engagements: number; tweets: number }>();
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+    for (let i = 13; i >= 0; i--) {
+      const d = new Date(today);
+      d.setUTCDate(d.getUTCDate() - i);
+      buckets.set(d.toISOString().split('T')[0], { impressions: 0, engagements: 0, tweets: 0 });
+    }
+
+    for (const t of (tweetsResp.data || []) as any[]) {
+      const day = (t.created_at || '').split('T')[0];
+      const bucket = buckets.get(day);
+      if (!bucket) continue;
+      const pm = t.public_metrics || {};
+      const om = t.organic_metrics || {};
+      const npm = t.non_public_metrics || {};
+      const impressions = pm.impression_count ?? om.impression_count ?? npm.impression_count ?? 0;
+      const engagements = (pm.like_count || 0) + (pm.retweet_count || 0) + (pm.reply_count || 0) + (pm.quote_count || 0) + (pm.bookmark_count || 0);
+      bucket.impressions += impressions;
+      bucket.engagements += engagements;
+      bucket.tweets += 1;
+    }
+
+    engagementData = [...buckets.entries()].map(([date, v]) => ({
+      date,
+      impressions: v.impressions,
+      engagements: v.engagements,
+      tweets: v.tweets,
+      followerChange: 0, // X API does not expose daily follower delta; tracked separately via performance_metrics
+    }));
+    engagementSource = 'x_api_v2';
+  } catch (err: any) {
+    engagementError = err?.message || String(err);
+    console.warn('[getXAnalytics] v2 timeline fetch failed:', engagementError);
+    engagementData = [];
   }
 
-  const followerGrowth = engagementData.reduce((sum, d) => sum + d.followerChange, 0);
+  const realImpressions = engagementData.reduce((s, d) => s + d.impressions, 0);
+  const realEngagements = engagementData.reduce((s, d) => s + d.engagements, 0);
+  const engagementRate = realImpressions > 0
+    ? parseFloat(((realEngagements / realImpressions) * 100).toFixed(2))
+    : 0;
 
   return {
     connected: true,
@@ -130,12 +170,14 @@ export async function getXAnalytics() {
       totalTweets,
       listed,
       favourites,
-      estimatedReach,
-      estimatedEngagements,
-      avgEngagementRate: parseFloat(avgEngagementRate),
-      followerGrowth,
+      // 14-day observed totals from v2 timeline. Zeroed if the fetch failed.
+      impressions_14d: realImpressions,
+      engagements_14d: realEngagements,
+      engagementRate_14d: engagementRate,
     },
     engagementData,
+    engagementSource,
+    engagementError,
     accountAge: daysSinceCreation,
     lastUpdated: new Date().toISOString(),
   };

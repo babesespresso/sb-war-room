@@ -2,6 +2,7 @@ import { runAgent, loadTenantContext, hydratePrompt } from './runner';
 import { createServiceClient, DEFAULT_TENANT } from '@/lib/supabase/client';
 import { postToSlack } from '@/lib/slack/client';
 import { scrapeAllCompetitors } from '@/lib/scrapers/competitors';
+import { generateRapidResponse } from './content-generator';
 import type { CompetitorAnalysis } from '@/types';
 
 const SYSTEM_PROMPT = `You are the Competitor Monitor for the {{candidate_name}} campaign. Your job is to analyze competitor activity and assess its strategic implications.
@@ -112,7 +113,10 @@ export async function runCompetitorMonitor(tenantId = DEFAULT_TENANT) {
     }
   }
 
-  // Send high-priority alerts to Slack
+  // Send high-priority alerts to Slack and auto-trigger rapid response
+  // when the model says the item requires one. This closes the "detect -> draft"
+  // loop that used to stop at the Slack notification.
+  let rapidResponses = 0;
   for (const alert of highAlerts) {
     const emoji = alert.analysis.threat_level === 'critical' ? ':rotating_light:' : ':warning:';
     await postToSlack(
@@ -124,7 +128,20 @@ export async function runCompetitorMonitor(tenantId = DEFAULT_TENANT) {
       (alert.analysis.suggested_response ? `*Suggested Angle:* ${alert.analysis.suggested_response}\n` : '') +
       (alert.source_url ? `<${alert.source_url}|View Source>` : '')
     );
+
+    if (alert.analysis.requires_response) {
+      try {
+        await generateRapidResponse(
+          `${alert.analysis.threat_level.toUpperCase()} threat: ${alert.analysis.summary}`,
+          alert.raw_content || alert.analysis.summary,
+          tenantId
+        );
+        rapidResponses++;
+      } catch (err) {
+        console.error(`[CompetitorMonitor] Auto rapid-response failed for alert ${alert.id}:`, err);
+      }
+    }
   }
 
-  return { processed, alerts: highAlerts.length };
+  return { processed, alerts: highAlerts.length, rapid_responses: rapidResponses };
 }

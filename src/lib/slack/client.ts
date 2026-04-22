@@ -1,7 +1,11 @@
 import { WebClient } from '@slack/web-api';
 import { updateDraftStatus } from '@/lib/supabase/queries';
-import { createServiceClient } from '@/lib/supabase/client';
+import { createServiceClient, DEFAULT_TENANT } from '@/lib/supabase/client';
 import { publishContent } from '@/lib/integrations/social-publisher';
+import { runDailyBrief } from '@/lib/agents/daily-brief';
+import { generateContent, generateRapidResponse } from '@/lib/agents/content-generator';
+import { runSentimentAnalyzer } from '@/lib/agents/sentiment-analyzer';
+import type { ContentType } from '@/types';
 
 let slackClient: WebClient | null = null;
 
@@ -131,11 +135,20 @@ export async function handleRequestMessage(event: {
 
   if (lowerText.includes('rapid') || lowerText.includes('response') || lowerText.includes('attack')) {
     await replyInThread(channel, ts, ':rotating_light: Rapid response mode activated. Generating options now.');
+    generateRapidResponse('Ad-hoc rapid response from Slack', text, DEFAULT_TENANT)
+      .catch(err => console.error('[Slack] rapid response failed:', err));
     return { type: 'rapid_response', text };
   }
 
   if (lowerText.includes('post') || lowerText.includes('social') || lowerText.includes('tweet')) {
     await replyInThread(channel, ts, ':speech_balloon: Generating social content options.');
+    const platform = detectPlatform(text) || 'twitter';
+    generateContent(
+      `social_${platform}` as ContentType,
+      text.substring(0, 200),
+      'From Slack #sb-requests',
+      DEFAULT_TENANT
+    ).catch(err => console.error('[Slack] social draft failed:', err));
     return { type: 'social', text };
   }
 
@@ -145,21 +158,63 @@ export async function handleRequestMessage(event: {
 }
 
 /**
- * Handle slash commands (/warbird)
+ * Handle slash commands (/warbird).
+ *
+ * Slack requires an ACK within 3 seconds. We return the immediate ack text
+ * and kick off the real work in the background. Agents post their own
+ * follow-up messages to their canonical channels.
  */
-export async function handleSlashCommand(command: string, args: string, userId: string) {
+export async function handleSlashCommand(command: string, args: string, _userId: string) {
+  const tenantId = DEFAULT_TENANT;
+
   switch (command) {
     case 'brief':
-      return { text: 'Generating today\'s brief. It\'ll post to #sb-war-room in a moment.' };
-    case 'draft':
-      return { text: `Starting a draft on "${args}". I'll post it to #sb-content-queue for review.` };
-    case 'status':
-      return { text: 'Checking agent status... (pulling from system)' };
-    case 'rapid':
-      return { text: `Rapid response mode activated for: "${args}". Stand by.` };
+      runDailyBrief(tenantId).catch(err => console.error('[SlashCommand] brief failed:', err));
+      return { text: "Generating today's brief. It'll post to #sb-war-room in a moment." };
+
+    case 'draft': {
+      const topic = (args || '').trim();
+      if (!topic) return { text: 'Usage: `/warbird draft <topic>` (e.g. `/warbird draft water policy in Grand Junction`)' };
+      const platform = detectPlatform(args) || 'twitter';
+      generateContent(
+        `social_${platform}` as ContentType,
+        topic,
+        `Slack slash command from user`,
+        tenantId
+      ).catch(err => console.error('[SlashCommand] draft failed:', err));
+      return { text: `Starting a ${platform} draft on "${topic}". I'll post it to #sb-content-queue for review.` };
+    }
+
+    case 'status': {
+      const base = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || '';
+      return { text: base ? `Agent status: ${base}/agents` : 'Open /agents in the app to see live status.' };
+    }
+
+    case 'rapid': {
+      const trigger = (args || '').trim();
+      if (!trigger) return { text: 'Usage: `/warbird rapid <what happened>`' };
+      generateRapidResponse(
+        'Rapid response requested via Slack',
+        trigger,
+        tenantId
+      ).catch(err => console.error('[SlashCommand] rapid failed:', err));
+      return { text: `Rapid response mode activated for: "${trigger}". Options will land in #sb-war-room shortly.` };
+    }
+
     case 'heatmap':
-      return { text: 'Generating issue heat map. Posting to #sb-war-room.' };
+      runSentimentAnalyzer(tenantId).catch(err => console.error('[SlashCommand] heatmap failed:', err));
+      return { text: 'Refreshing the issue heat map. New signals will show up in the dashboard and next brief.' };
+
     default:
       return { text: `Unknown command: ${command}. Try: brief, draft [topic], status, rapid [context], heatmap` };
   }
+}
+
+function detectPlatform(args: string): string | null {
+  const lc = (args || '').toLowerCase();
+  if (lc.includes('twitter') || lc.includes('tweet') || lc.includes(' x ')) return 'twitter';
+  if (lc.includes('facebook') || lc.includes('fb')) return 'facebook';
+  if (lc.includes('instagram') || lc.includes(' ig ')) return 'instagram';
+  if (lc.includes('tiktok')) return 'tiktok';
+  return null;
 }

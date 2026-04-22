@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { runCompetitorMonitor } from '@/lib/agents/competitor-monitor';
 import { runDailyBrief } from '@/lib/agents/daily-brief';
 import { runNewsPulse } from '@/lib/agents/news-pulse';
+import { runSentimentAnalyzer } from '@/lib/agents/sentiment-analyzer';
+import { runPerformanceTracker } from '@/lib/agents/performance-tracker';
 import { DEFAULT_TENANT } from '@/lib/supabase/client';
 
 // Vercel Cron: schedule in vercel.json
@@ -31,10 +33,20 @@ export async function GET(request: NextRequest) {
         const briefResult = await runDailyBrief(tenantId);
         return NextResponse.json({ success: true, agent, briefId: briefResult.briefId });
 
+      case 'sentiment_analyzer':
+        const sentimentResult = await runSentimentAnalyzer(tenantId);
+        return NextResponse.json({ success: true, agent, ...sentimentResult });
+
+      case 'performance_tracker':
+        const perfResult = await runPerformanceTracker(tenantId);
+        return NextResponse.json({ success: true, agent, ...perfResult });
+
       case 'all':
-        // Run all scheduled agents in sequence
+        // Run all scheduled agents in sequence. Order matters: ingest raw data
+        // first (news + competitor), then derive (sentiment), then summarize (brief).
+        // performance_tracker is independent and runs last.
         const results: Record<string, any> = {};
-        
+
         try {
           results.news_pulse = await runNewsPulse(tenantId);
         } catch (e: any) {
@@ -45,6 +57,18 @@ export async function GET(request: NextRequest) {
           results.competitor_monitor = await runCompetitorMonitor(tenantId);
         } catch (e: any) {
           results.competitor_monitor = { error: e.message };
+        }
+
+        try {
+          results.sentiment_analyzer = await runSentimentAnalyzer(tenantId);
+        } catch (e: any) {
+          results.sentiment_analyzer = { error: e.message };
+        }
+
+        try {
+          results.performance_tracker = await runPerformanceTracker(tenantId);
+        } catch (e: any) {
+          results.performance_tracker = { error: e.message };
         }
 
         try {

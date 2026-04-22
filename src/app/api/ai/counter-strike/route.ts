@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { Anthropic } from '@anthropic-ai/sdk';
 import { SCOTT_BOTTOMS_PERSONA } from '@/lib/persona';
 import { getActiveVideoTalkingPoints } from '@/lib/supabase/queries';
+import { extractJson } from '@/lib/agents/runner';
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY || ''
@@ -70,27 +71,26 @@ Format your response exactly as JSON:
 }`;
 
     const response = await anthropic.messages.create({
-      model: 'claude-3-haiku-20240307',
+      model: 'claude-sonnet-4-20250514',
       max_tokens: 400,
-      system: systemPrompt,
+      system: [
+        { type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } } as any,
+      ],
       messages: [{ role: 'user', content: 'Draft the counter-strike now. Return ONLY standard JSON.' }],
       temperature: 0.7
     });
 
     const reply = (response.content[0] as any).text;
-    
-    // Parse the JSON from the AI
-    let parsed;
-    try {
-      const jsonStr = reply.substring(reply.indexOf('{'), reply.lastIndexOf('}') + 1);
-      parsed = JSON.parse(jsonStr);
-    } catch (e) {
-      // Fallback if parsing fails
-      parsed = {
-        tweet: "We will not be intimidated by these baseless attacks.",
-        email: "They are attacking us. Chip in $10 to fight back.",
-        quote: "Desperate politicians make desperate attacks."
-      };
+
+    // Parse with the shared robust extractor. Do NOT substitute fake quotes
+    // if parsing fails — a staffer publishing "We will not be intimidated..."
+    // under the candidate's name is worse than surfacing the failure.
+    const parsed = extractJson(reply);
+    if (!parsed || !parsed.tweet || !parsed.email || !parsed.quote) {
+      return NextResponse.json(
+        { error: 'Counter-strike model returned unparseable output', raw: reply.substring(0, 500) },
+        { status: 502 }
+      );
     }
 
     return NextResponse.json(parsed);

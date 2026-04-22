@@ -5,6 +5,57 @@ import type { AgentRun } from '@/types';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
+// Default model for every agent. Override per-agent only when we have a specific reason.
+export const DEFAULT_AGENT_MODEL = 'claude-sonnet-4-20250514';
+
+/**
+ * Robust JSON extractor. Tries, in order:
+ *   1. A fenced ```json ... ``` block
+ *   2. The full string (stripped of fences)
+ *   3. The first array via balanced-bracket scan
+ *   4. The first object via balanced-bracket scan
+ * Returns the parsed value or null. Does NOT invent data on failure.
+ */
+export function extractJson(text: string): any {
+  if (!text) return null;
+  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (fenced) {
+    try { return JSON.parse(fenced[1].trim()); } catch { /* continue */ }
+  }
+  const trimmed = text.trim();
+  try { return JSON.parse(trimmed); } catch { /* continue */ }
+
+  const findBalanced = (open: string, close: string): string | null => {
+    const start = text.indexOf(open);
+    if (start < 0) return null;
+    let depth = 0;
+    let inString = false;
+    let escape = false;
+    for (let i = start; i < text.length; i++) {
+      const c = text[i];
+      if (inString) {
+        if (escape) { escape = false; continue; }
+        if (c === '\\') { escape = true; continue; }
+        if (c === '"') inString = false;
+        continue;
+      }
+      if (c === '"') { inString = true; continue; }
+      if (c === open) depth++;
+      else if (c === close) {
+        depth--;
+        if (depth === 0) return text.slice(start, i + 1);
+      }
+    }
+    return null;
+  };
+
+  const arr = findBalanced('[', ']');
+  if (arr) { try { return JSON.parse(arr); } catch { /* continue */ } }
+  const obj = findBalanced('{', '}');
+  if (obj) { try { return JSON.parse(obj); } catch { /* continue */ } }
+  return null;
+}
+
 export interface AgentConfig {
   name: string;
   tenantId?: string;
@@ -44,10 +95,19 @@ export async function runAgent(
   });
 
   try {
+    // System prompts are stable across calls (persona, race context, positions).
+    // Marking the system block cache_control=ephemeral lets Anthropic cache it
+    // for ~5 min — cuts input-token cost ~90% on back-to-back agent runs.
     const response = await anthropic.messages.create({
-      model: config.model || 'claude-sonnet-4-20250514',
+      model: config.model || DEFAULT_AGENT_MODEL,
       max_tokens: config.maxTokens || 4096,
-      system: config.systemPrompt,
+      system: [
+        {
+          type: 'text',
+          text: config.systemPrompt,
+          cache_control: { type: 'ephemeral' },
+        } as any,
+      ],
       messages: [{ role: 'user', content: userMessage }],
     });
 
@@ -59,16 +119,8 @@ export async function runAgent(
       })
       .join('\n');
 
-    // Try to parse JSON from the response
-    let parsed: any = null;
-    try {
-      const jsonMatch = textContent.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        parsed = JSON.parse(jsonMatch[0]);
-      }
-    } catch {
-      // Not JSON, that's fine for some agents (like daily brief)
-    }
+    // Parse JSON robustly (arrays and objects, with or without code fences).
+    const parsed = extractJson(textContent);
 
     const tokensInput = response.usage.input_tokens;
     const tokensOutput = response.usage.output_tokens;

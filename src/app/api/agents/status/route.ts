@@ -8,6 +8,7 @@ const AGENT_SCHEDULES: Record<string, { label: string; schedule: string; interva
   content_generator: { label: 'Content Generator', schedule: 'On demand', interval_hours: 0 },
   rapid_response: { label: 'Rapid Response', schedule: 'Triggered', interval_hours: 0 },
   sentiment_analyzer: { label: 'Sentiment Analyzer', schedule: 'Every 6 hours', interval_hours: 6 },
+  performance_tracker: { label: 'Performance Tracker', schedule: 'Every 3 hours', interval_hours: 3 },
 };
 
 export async function GET(request: NextRequest) {

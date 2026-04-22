@@ -1,7 +1,8 @@
-import { runAgent, loadTenantContext, hydratePrompt } from './runner';
+import { runAgent, loadTenantContext, hydratePrompt, extractJson } from './runner';
 import { createServiceClient, DEFAULT_TENANT } from '@/lib/supabase/client';
 import { scrapeAllNews } from '@/lib/scrapers/news';
 import { postToSlack } from '@/lib/slack/client';
+import { generateRapidResponse } from './content-generator';
 import type { NewsAnalysis } from '@/types';
 
 const SYSTEM_PROMPT = `You are the News Pulse Analyst for the {{candidate_name}} campaign in {{state}}.
@@ -108,16 +109,14 @@ export async function runNewsPulse(tenantId = DEFAULT_TENANT) {
         'scheduled'
       );
 
-      // Try to parse the array response
+      // Parse the array response via the shared robust extractor.
       let analyses: NewsAnalysis[] = [];
-      try {
-        const match = result.output.match(/\[[\s\S]*\]/);
-        if (match) {
-          analyses = JSON.parse(match[0]);
-        } else if (result.parsed) {
-          analyses = [result.parsed as NewsAnalysis];
-        }
-      } catch { /* skip unparseable */ }
+      const parsedAny = extractJson(result.output);
+      if (Array.isArray(parsedAny)) {
+        analyses = parsedAny as NewsAnalysis[];
+      } else if (parsedAny && typeof parsedAny === 'object') {
+        analyses = [parsedAny as NewsAnalysis];
+      }
 
       for (let j = 0; j < analyses.length && j < batch.length; j++) {
         const article = batch[j];
@@ -155,7 +154,8 @@ export async function runNewsPulse(tenantId = DEFAULT_TENANT) {
     }
   }
 
-  // Alert on high-priority response opportunities
+  // Alert on high-priority response opportunities and auto-draft for critical ones
+  let rapidResponses = 0;
   for (const opp of opportunities) {
     await postToSlack(
       process.env.SLACK_CHANNEL_NEWS_PULSE!,
@@ -166,7 +166,20 @@ export async function runNewsPulse(tenantId = DEFAULT_TENANT) {
       `*Suggested angle:* ${opp.analysis.suggested_angle}\n` +
       `<${opp.article.link}|Read Full Article>`
     );
+
+    if (opp.analysis.response_urgency === 'critical') {
+      try {
+        await generateRapidResponse(
+          `Critical news: ${opp.article.title}`,
+          `${opp.analysis.summary}\n\nSuggested angle: ${opp.analysis.suggested_angle}\n\nSource: ${opp.article.link}`,
+          tenantId
+        );
+        rapidResponses++;
+      } catch (err) {
+        console.error('[NewsPulse] Auto rapid-response failed:', err);
+      }
+    }
   }
 
-  return { processed, opportunities: opportunities.length };
+  return { processed, opportunities: opportunities.length, rapid_responses: rapidResponses };
 }
