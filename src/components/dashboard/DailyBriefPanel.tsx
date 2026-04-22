@@ -1,8 +1,43 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Sun, ChevronDown, ChevronUp, RefreshCw } from 'lucide-react';
+import { Sun, ChevronDown, ChevronUp, RefreshCw, ExternalLink } from 'lucide-react';
 import InfoTooltip from '@/components/ui/InfoTooltip';
+
+// Parse a line of markdown-like text and render [label](url) as clickable links,
+// **bold** as <strong>, and plain text otherwise. Bare URLs are also linkified.
+function renderInline(text: string): React.ReactNode {
+  const nodes: React.ReactNode[] = [];
+  const regex = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|(\*\*([^*]+)\*\*)|(https?:\/\/[^\s)]+)/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+  let key = 0;
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > lastIndex) nodes.push(text.slice(lastIndex, match.index));
+    if (match[1] && match[2]) {
+      nodes.push(
+        <a key={key++} href={match[2]} target="_blank" rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 underline decoration-dotted hover:decoration-solid transition-colors"
+          style={{ color: 'var(--campaign-gold, #f59e0b)' }}>
+          {match[1]}<ExternalLink className="w-3 h-3" />
+        </a>
+      );
+    } else if (match[3]) {
+      nodes.push(<strong key={key++} style={{ color: 'var(--text-primary)' }}>{match[4]}</strong>);
+    } else if (match[5]) {
+      nodes.push(
+        <a key={key++} href={match[5]} target="_blank" rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 underline decoration-dotted hover:decoration-solid"
+          style={{ color: 'var(--campaign-gold, #f59e0b)' }}>
+          {match[5]}<ExternalLink className="w-3 h-3" />
+        </a>
+      );
+    }
+    lastIndex = match.index + match[0].length;
+  }
+  if (lastIndex < text.length) nodes.push(text.slice(lastIndex));
+  return <>{nodes}</>;
+}
 
 export default function DailyBriefPanel() {
   const [brief, setBrief] = useState<any>(null);
@@ -94,7 +129,7 @@ export default function DailyBriefPanel() {
                   return (
                     <h3 key={i} className="text-base font-bold mt-5 mb-2 flex items-center gap-2"
                       style={{ color: 'var(--text-primary)', fontFamily: 'DM Sans, sans-serif' }}>
-                      {line.replace('## ', '')}
+                      {renderInline(line.replace('## ', ''))}
                     </h3>
                   );
                 }
@@ -102,12 +137,12 @@ export default function DailyBriefPanel() {
                   return (
                     <div key={i} className="flex gap-2 ml-2 mb-1">
                       <span style={{ color: 'var(--campaign-red)' }}>+</span>
-                      <span>{line.replace('- ', '')}</span>
+                      <span>{renderInline(line.replace('- ', ''))}</span>
                     </div>
                   );
                 }
                 if (line.trim() === '') return <div key={i} className="h-2" />;
-                return <p key={i} className="mb-1">{line}</p>;
+                return <p key={i} className="mb-1">{renderInline(line)}</p>;
               })}
             </div>
           ) : (

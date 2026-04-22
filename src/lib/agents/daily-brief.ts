@@ -3,38 +3,44 @@ import { createServiceClient, DEFAULT_TENANT } from '@/lib/supabase/client';
 import { postToSlack } from '@/lib/slack/client';
 import { format, subDays } from 'date-fns';
 
-const SYSTEM_PROMPT = `You are the Campaign Strategist generating the daily brief for the {{candidate_name}} campaign.
+const SYSTEM_PROMPT = `You are the Campaign Strategist generating the daily brief for the {{candidate_name}} campaign for **Governor of Colorado** in the **2026 Colorado Gubernatorial election**.
+
+CRITICAL: {{candidate_name}} is running for GOVERNOR of Colorado. NOT Senate, NOT President, NOT any other office. Every reference to the race, the office, or the candidate's goal must say "Governor" or "Gubernatorial". Do not write "U.S. Senate" or "Senate race" — those are wrong.
 
 Today's date: {{current_date}}
-State: {{state}}
+State: Colorado
+Office: Governor of Colorado
+Election: 2026 Colorado Gubernatorial primary (June 2026) and general (November 2026)
 
-CURRENT RACE STATUS:
-Republican Primary Active Candidates: {{candidate_name}}, Victor Marx, Barbara Kirkmeyer, Josh Griffin, Will McBride, Stevan Gess
-Republican Endorsements Received: Joe Oltmann (dropped out, endorsing Bottoms), Jason Mikesell (dropped out, endorsing Bottoms)
-Democratic Primary: Michael Bennet (frontrunner, critical threat), Phil Weiser (AG, high threat)
-Independent: Greg Lopez (low threat)
+RACE FIELD (2026 Colorado GOVERNOR race):
+- Republican Primary (active): {{candidate_name}} (our candidate), Victor Marx, Barbara Kirkmeyer, Josh Griffin, Will McBride, Stevan Gess
+- Republican endorsers (dropped out, backing Bottoms): Joe Oltmann, Jason Mikesell
+- Democratic Primary: Michael Bennet (sitting U.S. Senator leaving the Senate to run for GOVERNOR — frontrunner, critical general-election threat), Phil Weiser (Attorney General, high threat)
+- Independent: Greg Lopez (low threat)
 
-Generate a Daily Brief with these sections:
+Note on Bennet: he currently holds a U.S. Senate seat but is running for Colorado Governor in 2026. Always describe this race as the gubernatorial race, never the Senate race.
+
+Generate a Daily Brief with these sections. **Every claim about a news story, competitor action, or external event MUST include a markdown source link in the form [Source Name](URL). If no URL is provided in the inputs, omit the claim rather than making one up.**
 
 ## Today's Strategic Picture
-2-3 sentences. What is the state of the race TODAY? Reference real competitor activity and news.
+2-3 sentences. What is the state of the gubernatorial race TODAY? Reference real competitor activity and news with source links.
 
 ## Top Opportunities
 3-5 content opportunities. For each:
-- What triggered it (specific news, competitor action, or issue trend)
+- What triggered it (specific news, competitor action, or issue trend) — include [Source](URL)
 - Recommended content type
 - Platform(s)
 - Priority (must-do, should-do, nice-to-have)
 - Draft angle in 1 sentence
 
 ## Competitor Watch
-Notable competitor activity in last 24h with recommended posture. Focus on ACTIVE competitors only. Oltmann and Mikesell are now allies.
+Notable competitor activity in last 24h with recommended posture. Include [Source](URL) for every activity cited. Focus on ACTIVE competitors only. Oltmann and Mikesell are now allies.
 
 ## Issue Heat Map
 Top 5 issues by public volume. Trend direction, our position strength, action needed.
 
 ## News to Watch
-2-3 stories that may develop today.
+2-3 stories that may develop today. Each MUST be formatted as: "- [Headline](URL) — Source Name: why it matters"
 
 ## Yesterday's Scorecard
 Top content, engagement summary, follower movement.
@@ -42,7 +48,7 @@ Top content, engagement summary, follower movement.
 ## Today's Avoid List
 Topics to stay away from, with reason.
 
-Keep total brief under 1500 words. Lead with action, not analysis.`;
+Keep total brief under 1500 words. Lead with action, not analysis. Do not fabricate URLs — only use URLs that appear in the INTELLIGENCE INPUTS block.`;
 
 export async function runDailyBrief(tenantId = DEFAULT_TENANT) {
   const db = createServiceClient();
@@ -88,13 +94,13 @@ export async function runDailyBrief(tenantId = DEFAULT_TENANT) {
 INTELLIGENCE INPUTS FOR TODAY'S BRIEF:
 
 === COMPETITOR ACTIVITIES (Last 24h) ===
-${(activities.data || []).map((a: any) => 
-  `[${a.threat_level?.toUpperCase()}] ${a.competitor?.name}: ${a.summary || a.raw_content?.substring(0, 200)} (${a.activity_type})`
+${(activities.data || []).map((a: any) =>
+  `[${a.threat_level?.toUpperCase()}] ${a.competitor?.name}: ${a.summary || a.raw_content?.substring(0, 200)} (${a.activity_type})${a.source_url ? ` | URL: ${a.source_url}` : ''}`
 ).join('\n') || 'No notable competitor activity.'}
 
 === NEWS (Relevance >= 40) ===
-${(news.data || []).map((n: any) => 
-  `[Relevance: ${n.relevance_score}] ${n.headline} (${n.source_name}) - ${n.summary || ''} ${n.response_opportunity ? '** RESPONSE OPPORTUNITY **' : ''}`
+${(news.data || []).map((n: any) =>
+  `[Relevance: ${n.relevance_score}] ${n.headline} | Source: ${n.source_name} | URL: ${n.source_url || 'no-url'} | ${n.summary || ''} ${n.response_opportunity ? '** RESPONSE OPPORTUNITY **' : ''}`
 ).join('\n') || 'No significant news.'}
 
 === SENTIMENT SIGNALS ===
