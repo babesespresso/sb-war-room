@@ -119,7 +119,7 @@ export default function TodaysPriorities() {
                 Today&apos;s Priorities
                 <InfoTooltip text="AI-computed campaign health and action items based on live MMDB contacts, social analytics, competitor intelligence, and content pipeline. Scores update in real-time." />
               </h2>
-              <p className="text-[11px] uppercase tracking-widest font-bold mt-1" style={{ color: 'var(--text-muted)' }}>
+              <p className="text-[11px] uppercase tracking-widest font-bold mt-1" style={{ color: 'var(--text-muted)' }} suppressHydrationWarning>
                 {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
                 {data?.lastUpdated && ` · Last computed ${new Date(data.lastUpdated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
               </p>

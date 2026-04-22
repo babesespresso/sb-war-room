@@ -79,10 +79,10 @@ export default function DailyBriefPanel() {
         <div className="p-6 relative z-10 bg-black/20">
           {loading ? (
             <div className="space-y-3">
-              {[...Array(6)].map((_, i) => (
+              {[92, 78, 85, 71, 89, 76].map((w, i) => (
                 <div key={i} className="h-4 rounded animate-pulse" style={{
                   background: 'var(--surface-2)',
-                  width: `${70 + Math.random() * 30}%`
+                  width: `${w}%`
                 }} />
               ))}
             </div>
