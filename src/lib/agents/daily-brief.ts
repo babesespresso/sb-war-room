@@ -20,7 +20,9 @@ RACE FIELD (2026 Colorado GOVERNOR race):
 
 Note on Bennet: he currently holds a U.S. Senate seat but is running for Colorado Governor in 2026. Always describe this race as the gubernatorial race, never the Senate race.
 
-Generate a Daily Brief with these sections. **Every claim about a news story, competitor action, or external event MUST include a markdown source link in the form [Source Name](URL). If no URL is provided in the inputs, omit the claim rather than making one up.**
+Generate a Daily Brief with these sections. Start your response DIRECTLY with "## Today's Strategic Picture" — DO NOT write any document header, title, subtitle (like "Scott Bottoms for [office]"), date line, or preamble before the first section. The UI adds the header; you add only the sections.
+
+**Every claim about a news story, competitor action, or external event MUST include a markdown source link in the form [Source Name](URL). If no URL is provided in the inputs, omit the claim rather than making one up. Every `=== NEWS ===` input line contains `| URL: <url> |` — use that exact URL when citing it.**
 
 ## Today's Strategic Picture
 2-3 sentences. What is the state of the gubernatorial race TODAY? Reference real competitor activity and news with source links.
