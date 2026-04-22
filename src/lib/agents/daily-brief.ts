@@ -125,8 +125,9 @@ ${context.positions.map((p: any) => `${p.topic}: ${p.position_summary?.substring
     'scheduled'
   );
 
-  // Store the brief
-  const brief = await db.from('daily_briefs').insert({
+  // Store the brief. Upsert by (tenant_id, brief_date) so re-running the same day
+  // overwrites the previous brief instead of silently failing on a unique-constraint.
+  const brief = await db.from('daily_briefs').upsert({
     tenant_id: tenantId,
     brief_date: today,
     brief_markdown: result.output,
@@ -134,7 +135,12 @@ ${context.positions.map((p: any) => `${p.topic}: ${p.position_summary?.substring
     competitor_summary: {},
     trending_issues: [],
     news_highlights: [],
-  }).select().single();
+  }, { onConflict: 'tenant_id,brief_date' }).select().single();
+
+  if (brief.error) {
+    console.error('[DailyBrief] DB upsert failed:', brief.error);
+    throw new Error(`DailyBrief DB upsert failed: ${brief.error.message}`);
+  }
 
   // Post to Slack War Room
   await postToSlack(
