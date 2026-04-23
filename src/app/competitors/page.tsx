@@ -129,7 +129,7 @@ export default function CompetitorsPage() {
   };
 
   return (
-    <div className="min-h-screen p-6" style={{ background: 'var(--surface-0)' }}>
+    <div className="p-4 md:p-6" style={{ background: 'var(--surface-0)' }}>
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-2">Competitor Tracking <InfoTooltip text="Full intelligence view of competing gubernatorial campaigns. Monitor their public activity, threat levels, and generate AI-powered counter-strike responses." /></h1>

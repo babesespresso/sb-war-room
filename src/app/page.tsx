@@ -1,10 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import {
-  FileText, AlertTriangle, TrendingUp, Send, Eye, Flame,
-  Clock, ChevronRight, Shield, Zap, Users, BarChart3, RefreshCw
-} from 'lucide-react';
+import { useEffect, useState } from 'react';
 import StatsGrid from '@/components/dashboard/StatsGrid';
 import DailyBriefPanel from '@/components/dashboard/DailyBriefPanel';
 import ContentQueuePanel from '@/components/dashboard/ContentQueuePanel';
@@ -21,87 +17,87 @@ import WebTrafficMonitor from '@/components/dashboard/WebTrafficMonitor';
 import SocialPerformance from '@/components/dashboard/SocialPerformance';
 
 export default function WarRoom() {
-  const [lastRefresh, setLastRefresh] = useState(new Date());
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [rapidResponseOpen, setRapidResponseOpen] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(Date.now());
+  const [rapidOpen, setRapidOpen] = useState(false);
 
-  const handleRefresh = () => {
-    setIsRefreshing(true);
-    setLastRefresh(new Date());
-    setTimeout(() => setIsRefreshing(false), 1500);
-  };
+  // Listen for TopBar global events
+  useEffect(() => {
+    const onRefresh = () => setRefreshKey(Date.now());
+    const onRapid = () => setRapidOpen(true);
+    window.addEventListener('warroom:refresh', onRefresh);
+    window.addEventListener('warroom:rapid-response', onRapid);
+    return () => {
+      window.removeEventListener('warroom:refresh', onRefresh);
+      window.removeEventListener('warroom:rapid-response', onRapid);
+    };
+  }, []);
+
+  // Honor ?rr=1 coming from other pages via the global Rapid Response hotkey/button.
+  // Read from window to avoid the Next 15 useSearchParams Suspense requirement.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('rr') === '1') setRapidOpen(true);
+  }, []);
 
   return (
-    <div className="min-h-screen p-3 md:p-6 pb-24 md:pb-6" style={{ background: 'var(--surface-0)' }}>
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between mb-4 md:mb-8 animate-fade-in gap-3">
-        <div>
-          <div className="flex items-center gap-3 mb-1">
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight font-mono text-shadow-glow">WAR ROOM</h1>
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-sm text-xs font-medium font-mono"
-              style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#6ee7b7', border: '1px solid rgba(16, 185, 129, 0.5)' }}>
-              <div className="w-1.5 h-1.5 rounded-none pulse-live" style={{ background: 'var(--campaign-green)' }} />
-              LIVE
-            </div>
-          </div>
-          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-            Campaign intelligence dashboard for Scott Bottoms for Governor 2026
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <span className="text-xs" style={{ color: 'var(--text-muted)' }} suppressHydrationWarning>
-            Last updated: {lastRefresh.toLocaleTimeString()}
-          </span>
-          <button onClick={handleRefresh}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all hover:brightness-110"
-            style={{ background: 'var(--navy-800)', color: 'var(--text-primary)', border: '1px solid var(--border-color)' }}>
-            <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-            Refresh
-          </button>
-          <button onClick={() => setRapidResponseOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all hover:brightness-110"
-            style={{ background: 'var(--campaign-red)', color: 'white' }}>
-            <Zap className="w-4 h-4" />
-            Rapid Response
-          </button>
-        </div>
-      </div>
+    <div
+      style={{
+        padding: 'var(--pad-section)',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 'var(--gap)',
+        background: 'var(--bg-0)',
+        minHeight: '100%',
+      }}
+    >
+      {/* Page eyebrow + title */}
+      <header style={{ marginBottom: 4 }}>
+        <div className="wb-eyebrow" style={{ marginBottom: 6 }}>Command center</div>
+        <h1 className="wb-h-display" style={{ margin: 0, fontSize: 32, lineHeight: 1.1, color: 'var(--ink-0)' }}>
+          Today at a glance
+        </h1>
+        <p style={{ margin: '6px 0 0', fontSize: 13, color: 'var(--ink-2)', maxWidth: 720 }}>
+          Scott Bottoms for Colorado Governor · 2026 GOP primary. Live intelligence, draft queue, and competitor signals.
+        </p>
+      </header>
 
-      {/* Today's Priorities — COMMAND CENTER */}
+      {/* Hero: priorities */}
       <div className="animate-fade-in animate-fade-in-delay-1">
         <TodaysPriorities />
       </div>
 
-      {/* Stats Grid */}
-      <div className="mt-4 md:mt-6 animate-fade-in animate-fade-in-delay-1">
-        <StatsGrid refreshKey={lastRefresh.getTime()} />
+      {/* Stats */}
+      <div className="animate-fade-in animate-fade-in-delay-1">
+        <StatsGrid refreshKey={refreshKey} />
       </div>
 
-      {/* Quick Actions Bar (Sticky on Mobile) */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 p-3 pb-6 md:pb-0 md:relative md:p-0 mt-0 md:mt-6 animate-fade-in animate-fade-in-delay-2 pointer-events-none">
-        <div className="pointer-events-auto hud-panel md:!bg-transparent md:!border-none md:!shadow-none md:!backdrop-filter-none rounded-2xl md:rounded-none">
-          <QuickActions initialRapidResponse={rapidResponseOpen} onRapidResponseClose={() => setRapidResponseOpen(false)} />
+      {/* Quick Actions (includes RapidResponse modal) */}
+      <div className="fixed bottom-16 left-0 right-0 z-40 p-3 md:relative md:bottom-auto md:p-0 pointer-events-none">
+        <div className="pointer-events-auto">
+          <QuickActions
+            initialRapidResponse={rapidOpen}
+            onRapidResponseClose={() => setRapidOpen(false)}
+          />
         </div>
       </div>
 
-      {/* MMDB & Supporter Funnel */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 md:gap-6 mt-4 md:mt-6 animate-fade-in animate-fade-in-delay-2">
+      {/* Supporter pulse */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 md:gap-6 animate-fade-in animate-fade-in-delay-2">
         <MMDBPulse />
         <SupporterFunnel />
       </div>
 
-      {/* Digital Properties & Site Analytics */}
-      <div className="mt-4 md:mt-6 animate-fade-in animate-fade-in-delay-2">
+      {/* Web + social perf */}
+      <div className="animate-fade-in animate-fade-in-delay-2">
         <WebTrafficMonitor />
       </div>
-
-      {/* Social Media Command — FB/IG/X Performance */}
-      <div className="mt-4 md:mt-6 animate-fade-in animate-fade-in-delay-2">
+      <div className="animate-fade-in animate-fade-in-delay-2">
         <SocialPerformance />
       </div>
 
-      {/* Digital Perimeter Defense & Automation Status */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6 mt-4 md:mt-6 animate-fade-in animate-fade-in-delay-2">
+      {/* Threat + automations */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6 animate-fade-in animate-fade-in-delay-2">
         <div className="lg:col-span-8">
           <ThreatMonitor />
         </div>
@@ -110,10 +106,9 @@ export default function WarRoom() {
         </div>
       </div>
 
-      {/* Main Grid — Intel & Content */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6 mt-4 md:mt-6">
-        {/* Left Column - Brief & Content */}
-        <div className="col-span-1 lg:col-span-8 space-y-4 md:space-y-6">
+      {/* Main grid — Brief + Queue left, Intel rail right */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6">
+        <div className="lg:col-span-8 space-y-4 md:space-y-6 min-w-0">
           <div className="animate-fade-in animate-fade-in-delay-2">
             <DailyBriefPanel />
           </div>
@@ -121,9 +116,7 @@ export default function WarRoom() {
             <ContentQueuePanel />
           </div>
         </div>
-
-        {/* Right Column - Intel Feeds */}
-        <div className="col-span-1 lg:col-span-4 space-y-6">
+        <div className="lg:col-span-4 space-y-4 md:space-y-6">
           <div className="animate-fade-in animate-fade-in-delay-2">
             <HeatMap />
           </div>

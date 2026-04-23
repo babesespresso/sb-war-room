@@ -58,6 +58,60 @@ async function getFreshness(tenantId: string) {
   };
 }
 
+/**
+ * Compose a live ticker feed from recent news, competitor activity,
+ * latest brief, and approved drafts. Each item is tagged so the TopBar
+ * can color-code it.
+ */
+async function getTicker(tenantId: string) {
+  const db = createServiceClient();
+  const since = new Date(Date.now() - 24 * 3600_000).toISOString();
+
+  const [news, acts, brief, approved, heat] = await Promise.all([
+    db.from('news_items').select('headline, source_name, source_url, published_at, relevance_score')
+      .eq('tenant_id', tenantId).gte('published_at', since)
+      .order('relevance_score', { ascending: false }).limit(4),
+    db.from('competitor_activities').select('summary, raw_content, threat_level, detected_at, competitor:competitors(name)')
+      .eq('tenant_id', tenantId).gte('detected_at', since)
+      .in('threat_level', ['critical', 'high'])
+      .order('detected_at', { ascending: false }).limit(3),
+    db.from('daily_briefs').select('brief_date').eq('tenant_id', tenantId)
+      .order('brief_date', { ascending: false }).limit(1),
+    db.from('content_drafts').select('body, status, updated_at')
+      .eq('tenant_id', tenantId).in('status', ['approved', 'published'])
+      .gte('updated_at', since).order('updated_at', { ascending: false }).limit(2),
+    db.from('sentiment_signals').select('topic, velocity, opportunity_score')
+      .eq('tenant_id', tenantId).gte('opportunity_score', 60)
+      .order('velocity', { ascending: false }).limit(2),
+  ]);
+
+  const items: { tag: string; text: string }[] = [];
+
+  if (brief.data?.[0]) {
+    items.push({ tag: 'BRIEF', text: `Daily brief published ${brief.data[0].brief_date}` });
+  }
+  for (const n of (news.data || []) as any[]) {
+    items.push({ tag: 'INTEL', text: `${n.headline} — ${n.source_name || 'news'}` });
+  }
+  for (const a of (acts.data || []) as any[]) {
+    const name = a.competitor?.name || 'competitor';
+    const snip = (a.summary || a.raw_content || '').toString().slice(0, 120);
+    items.push({ tag: 'ALERT', text: `${name}: ${snip}` });
+  }
+  for (const d of (approved.data || []) as any[]) {
+    items.push({ tag: 'WIN', text: `Draft ${d.status}: "${String(d.body).slice(0, 80)}…"` });
+  }
+  for (const h of (heat.data || []) as any[]) {
+    const dir = h.velocity > 0 ? '+' : '';
+    items.push({ tag: 'HEAT', text: `${h.topic} trending (velocity ${dir}${h.velocity}, opportunity ${h.opportunity_score})` });
+  }
+
+  if (items.length === 0) {
+    items.push({ tag: 'BRIEF', text: 'Awaiting first intelligence cycle — cron jobs running every 2–6h' });
+  }
+  return items;
+}
+
 function getTenant(req: NextRequest) {
   return req.headers.get('x-tenant-id') || DEFAULT_TENANT;
 }
@@ -122,6 +176,9 @@ export async function GET(request: NextRequest) {
 
       case 'heatmap':
         return NextResponse.json(await getHeatMap(tenant));
+
+      case 'ticker':
+        return NextResponse.json(await getTicker(tenant));
 
       default:
         return NextResponse.json({ error: 'Unknown type' }, { status: 400 });

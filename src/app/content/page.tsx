@@ -130,7 +130,7 @@ export default function ContentPage() {
   const types = ['all', 'social_twitter', 'social_facebook', 'social_instagram', 'email', 'rapid_response'];
 
   return (
-    <div className="min-h-screen p-6" style={{ background: 'var(--surface-0)' }}>
+    <div className="p-4 md:p-6" style={{ background: 'var(--surface-0)' }}>
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-2">Content Queue <InfoTooltip text="Full content management system for all AI-generated campaign posts. Filter by status and platform type, then approve, revise, or reject before publishing." /></h1>

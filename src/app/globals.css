@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&family=Montserrat:wght@600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500;600;700&family=Montserrat:wght@600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Instrument+Serif&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -20,27 +20,196 @@
   --campaign-green: #10b981; /* emerald-500 */
   --campaign-blue: #3b82f6; /* blue-500 */
   
-  /* Core Surfaces */
-  --surface-0: #000000; /* Pure black background */
-  --surface-1: rgba(15, 15, 15, 0.7); /* Translucent neutral black for cards */
-  --surface-2: rgba(30, 30, 30, 0.5); /* Elevated elements */
-  --surface-3: #1a1a1a;
-  
+  /* Core Surfaces — re-pointed to WARBIRD base so all legacy panels align with the new shell */
+  --surface-0: #050505; /* matches --bg-0 */
+  --surface-1: #111113; /* matches --bg-2 (card surface) */
+  --surface-2: #16171a; /* matches --bg-3 (elevated) */
+  --surface-3: #1c1d21; /* matches --bg-4 */
+
   /* Typography */
-  --text-primary: #f8fafc; /* slate-50 */
-  --text-secondary: #cbd5e1; /* slate-300 */
-  --text-muted: #94a3b8; /* slate-400 */
-  
+  --text-primary: #f5f6f8; /* matches --ink-0 */
+  --text-secondary: #d4d6db; /* matches --ink-1 */
+  --text-muted: #8a8d94;  /* matches --ink-2 */
+
   /* Borders */
-  --border-color: rgba(255, 255, 255, 0.08);
-  --border-light: rgba(255, 255, 255, 0.15);
+  --border-color: rgba(255, 255, 255, 0.06); /* matches --line */
+  --border-light: rgba(255, 255, 255, 0.12); /* matches --line-strong */
 
   /* Glows */
   --glow-red: rgba(225, 29, 72, 0.15);
   --glow-blue: rgba(59, 130, 246, 0.15);
   --glow-gold: rgba(245, 158, 11, 0.15);
   --glow-cyan: rgba(34, 211, 238, 0.2);
+
+  /* === WARBIRD redesign tokens (additive, used by new shell/panels) === */
+  --bg-0: #050505;
+  --bg-1: #0a0a0b;
+  --bg-2: #111113;
+  --bg-3: #16171a;
+  --bg-4: #1c1d21;
+  --line: rgba(255,255,255,0.06);
+  --line-strong: rgba(255,255,255,0.12);
+  --line-accent: rgba(255,255,255,0.18);
+  --ink-0: #f5f6f8;
+  --ink-1: #d4d6db;
+  --ink-2: #8a8d94;
+  --ink-3: #55585e;
+  --ink-4: #33363b;
+  --red: #e5484d;
+  --gold: #f5a524;
+  --green: #2fb380;
+  --blue: #4a8df0;
+  --purple: #9b7ff0;
+  --cyan: #3dd2d4;
+  --accent: #e5484d;
+  --accent-dim: rgba(229,72,77,0.12);
+  --accent-line: rgba(229,72,77,0.32);
+  --accent-ink: #ff8a8d;
+  --font-body: 'DM Sans', -apple-system, system-ui, sans-serif;
+  --font-display: 'Space Grotesk', 'DM Sans', sans-serif;
+  --font-mono-wb: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+  --font-editorial: 'Instrument Serif', Georgia, serif;
+  --pad-card: 20px;
+  --pad-section: 24px;
+  --gap: 16px;
+  --row: 44px;
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 14px;
 }
+
+/* WARBIRD primitives */
+.wb-panel {
+  background: linear-gradient(180deg, var(--bg-2) 0%, var(--bg-1) 100%);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  position: relative;
+  overflow: hidden;
+}
+.wb-panel::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent);
+  pointer-events: none;
+}
+.wb-panel-flat {
+  background: var(--bg-1);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+}
+.wb-subpanel {
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+}
+.wb-mono { font-family: var(--font-mono-wb); font-feature-settings: 'ss01','cv11'; }
+.wb-display { font-family: var(--font-display); letter-spacing: -0.02em; }
+.wb-eyebrow {
+  font-family: var(--font-mono-wb);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+.wb-kbd {
+  font-family: var(--font-mono-wb);
+  font-size: 10px;
+  padding: 2px 5px;
+  border-radius: 4px;
+  background: var(--bg-3);
+  border: 1px solid var(--line);
+  color: var(--ink-2);
+  line-height: 1;
+}
+.wb-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono-wb);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--line);
+  background: var(--bg-2);
+  color: var(--ink-1);
+  white-space: nowrap;
+}
+.wb-chip.live { color: #7ee2b8; border-color: rgba(47,179,128,0.35); background: rgba(47,179,128,0.1); }
+.wb-chip.critical { color: #ff9da0; border-color: rgba(229,72,77,0.4); background: rgba(229,72,77,0.1); }
+.wb-chip.warn { color: #f5c46a; border-color: rgba(245,165,36,0.35); background: rgba(245,165,36,0.1); }
+.wb-chip.info { color: #9ab8f2; border-color: rgba(74,141,240,0.35); background: rgba(74,141,240,0.1); }
+.wb-pulse {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 0 0 rgba(47,179,128,0.6);
+  animation: wb-pulse 2.2s infinite;
+  flex-shrink: 0;
+}
+.wb-pulse.red { background: var(--red); animation-name: wb-pulse-red; }
+@keyframes wb-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(47,179,128,0.6); }
+  70% { box-shadow: 0 0 0 8px rgba(47,179,128,0); }
+  100% { box-shadow: 0 0 0 0 rgba(47,179,128,0); }
+}
+@keyframes wb-pulse-red {
+  0% { box-shadow: 0 0 0 0 rgba(229,72,77,0.6); }
+  70% { box-shadow: 0 0 0 8px rgba(229,72,77,0); }
+  100% { box-shadow: 0 0 0 0 rgba(229,72,77,0); }
+}
+.wb-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 0 14px;
+  height: 36px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--bg-2);
+  color: var(--ink-0);
+  cursor: pointer;
+  transition: all .15s ease;
+  white-space: nowrap;
+}
+.wb-btn:hover { background: var(--bg-3); border-color: var(--line-strong); }
+.wb-btn-rapid {
+  position: relative;
+  background: linear-gradient(180deg, var(--accent) 0%, color-mix(in oklab, var(--accent), #000 15%) 100%);
+  border: 1px solid color-mix(in oklab, var(--accent), #fff 20%);
+  color: #fff;
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.05) inset, 0 10px 30px -10px var(--accent);
+}
+.wb-icon-btn {
+  width: 36px; height: 36px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 8px;
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  color: var(--ink-1);
+  cursor: pointer;
+  transition: all .15s ease;
+}
+.wb-icon-btn:hover { background: var(--bg-3); color: var(--ink-0); }
+.wb-h-display { font-family: var(--font-display); font-weight: 700; letter-spacing: -0.025em; }
+.wb-num-lg { font-family: var(--font-mono-wb); font-weight: 700; letter-spacing: -0.04em; font-feature-settings: 'tnum'; }
+
+@keyframes wb-ticker {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.wb-ticker-track { display: inline-flex; gap: 40px; white-space: nowrap; animation: wb-ticker 60s linear infinite; }
+.wb-ticker:hover .wb-ticker-track { animation-play-state: paused; }
+
+@keyframes wb-spin { to { transform: rotate(360deg); } }
+.wb-spin { animation: wb-spin 1s linear infinite; }
 
 .text-shadow-glow {
   text-shadow: 0 0 8px rgba(255, 255, 255, 0.3);
@@ -71,16 +240,18 @@
 }
 
 body {
-  font-family: 'DM Sans', sans-serif;
-  background: var(--surface-0);
-  background-image: radial-gradient(circle at 50% -20%, #111111 0%, #000000 100%);
+  font-family: var(--font-body);
+  background: var(--bg-0);
+  background-image: radial-gradient(circle at 50% -20%, #0d0d0f 0%, #050505 100%);
   background-attachment: fixed;
-  color: var(--text-primary);
+  color: var(--ink-0);
   -webkit-font-smoothing: antialiased;
+  font-feature-settings: 'ss01','cv11';
 }
 
 h1, h2, h3 {
-  font-family: 'Montserrat', sans-serif;
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
 }
 
 code, pre, .font-mono {
@@ -103,13 +274,12 @@ code, pre, .font-mono {
   background: var(--navy-500);
 }
 
-/* Base Card Style for Glassmorphism (HUD Updated) */
+/* Base Card — bridged to WARBIRD wb-panel aesthetic (sharper, less translucent) */
 .glass-panel, .hud-panel {
-  background: var(--surface-1);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border: 1px solid var(--border-color);
-  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.6), 0 4px 6px -1px rgba(0, 0, 0, 0.4);
+  background: linear-gradient(180deg, var(--bg-2) 0%, var(--bg-1) 100%);
+  border: 1px solid var(--line);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
+  position: relative;
 }
 
 .glass-panel::after, .hud-panel::after {
@@ -117,14 +287,14 @@ code, pre, .font-mono {
   position: absolute;
   top: 0; left: 0; right: 0;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent);
+  pointer-events: none;
 }
 
 /* Sub-card within a panel */
 .glass-subpanel, .hud-subpanel {
-  background: var(--surface-2);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--bg-3);
+  border: 1px solid var(--line);
 }
 
 /* Stat cards glow effect */

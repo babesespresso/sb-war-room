@@ -31,7 +31,7 @@ export default function PositionsPage() {
   }, []);
 
   return (
-    <div className="min-h-screen p-6" style={{ background: 'var(--surface-0)' }}>
+    <div className="p-4 md:p-6" style={{ background: 'var(--surface-0)' }}>
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-2">Policy Positions <InfoTooltip text="Knowledge base of the candidate's policy positions on key issues. Each position includes summaries, talking points, and strength assessments that power AI content generation." /></h1>

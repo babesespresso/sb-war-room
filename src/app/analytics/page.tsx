@@ -52,7 +52,7 @@ export default function AnalyticsPage() {
   ];
 
   return (
-    <div className="min-h-screen p-6" style={{ background: 'var(--surface-0)' }}>
+    <div className="p-4 md:p-6" style={{ background: 'var(--surface-0)' }}>
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-2">Analytics <InfoTooltip text="Campaign performance dashboard showing social media reach, engagement rates, follower growth, and AI agent activity across all connected platforms." /></h1>
