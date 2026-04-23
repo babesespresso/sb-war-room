@@ -1,116 +1,150 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Target, Plus, ChevronDown, ChevronRight, Shield, Edit } from 'lucide-react';
+/**
+ * Positions — policy knowledge base that feeds content generation.
+ *
+ * Endpoints called:
+ *   GET /api/positions   → Position[]  { id, topic, subtopic, position_summary, talking_points[], strength }
+ *
+ * Preserves: expandable rows, strength color coding, empty-state quick-add
+ * topics scaffold.
+ */
+
+import { useEffect, useState } from 'react';
+import { Target, Plus, ChevronDown, ChevronRight } from 'lucide-react';
 import InfoTooltip from '@/components/ui/InfoTooltip';
 import PageHeader from '@/components/layout/PageHeader';
 
-const STRENGTH_COLORS: Record<string, string> = {
-  strong: '#10b981',
-  moderate: '#60a5fa',
-  developing: '#f59e0b',
-  vulnerable: '#ef4444',
+interface Position {
+  id: string;
+  topic: string;
+  subtopic?: string;
+  position_summary: string;
+  talking_points?: string[];
+  strength: 'strong' | 'moderate' | 'developing' | 'vulnerable';
+}
+
+const STRENGTH_COLORS: Record<Position['strength'], string> = {
+  strong:      '#10b981',
+  moderate:    '#60a5fa',
+  developing:  '#f59e0b',
+  vulnerable:  '#ef4444',
 };
 
+const SEED_TOPICS = [
+  'Economy & Jobs', 'Water Policy', 'Education', 'Public Safety',
+  'Healthcare', 'Energy', 'Housing', 'Immigration',
+];
+
 export default function PositionsPage() {
-  const [positions, setPositions] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [expanded, setExpanded] = useState<string | null>(null);
+  const [positions, setPositions] = useState<Position[]>([]);
+  const [loading, setLoading]     = useState(true);
+  const [expanded, setExpanded]   = useState<string | null>(null);
 
   useEffect(() => {
-    async function fetchPositions() {
+    let cancelled = false;
+    (async () => {
       try {
         const res = await fetch('/api/positions');
-        if (res.ok) {
-          const data = await res.json();
-          setPositions(data || []);
-        }
-      } catch (err) { console.error(err); }
-      setLoading(false);
-    }
-    fetchPositions();
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (!cancelled) setPositions(Array.isArray(data) ? data : []);
+      } catch (e) { console.error(e); }
+      finally    { if (!cancelled) setLoading(false); }
+    })();
+    return () => { cancelled = true; };
   }, []);
 
+  const titleCase = (s: string) =>
+    s.replaceAll('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
+
   return (
-    <div className="p-4 md:p-6 flex flex-col gap-6" style={{ background: 'var(--bg-0)' }}>
+    <div style={{ padding: 'var(--pad-section)', display: 'flex', flexDirection: 'column', gap: 'var(--gap)', background: 'var(--bg-0)' }}>
       <PageHeader
         eyebrow="Operations · Knowledge base"
-        title={<>Policy Positions <InfoTooltip text="Knowledge base of the candidate's policy positions on key issues. Each position includes summaries, talking points, and strength assessments that power AI content generation." /></>}
+        title={<>Policy Positions <InfoTooltip text="Knowledge base of the candidate's policy positions on key issues. Each includes summaries, talking points, and strength assessments that power AI content generation." /></>}
         subtitle="Scott Bottoms' policy positions and talking points knowledge base."
         actions={
           <button className="wb-btn wb-btn-rapid">
-            <Plus className="w-4 h-4" /> Add Position
+            <Plus size={14} /> Add position
           </button>
         }
       />
 
       {loading ? (
-        <div className="space-y-3">
-          {[...Array(5)].map((_, i) => (
-            <div key={i} className="h-16 rounded-xl animate-pulse" style={{ background: 'var(--surface-1)' }} />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} style={{ height: 64, borderRadius: 12, background: 'var(--bg-1)' }} className="animate-pulse" />
           ))}
         </div>
       ) : positions.length === 0 ? (
-        <div className="rounded-xl p-12 text-center" style={{ background: 'var(--surface-1)', border: '1px solid var(--border-color)' }}>
-          <Target className="w-16 h-16 mx-auto mb-4" style={{ color: 'var(--text-muted)' }} />
-          <h2 className="text-xl font-bold mb-2">Knowledge Base Empty</h2>
-          <p className="text-sm mb-6 max-w-md mx-auto" style={{ color: 'var(--text-muted)' }}>
+        <div className="wb-panel" style={{ padding: 48, textAlign: 'center' }}>
+          <Target size={56} style={{ color: 'var(--ink-2)', margin: '0 auto 16px', display: 'block' }} />
+          <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 6 }}>Knowledge base empty</h2>
+          <p style={{ fontSize: 13, color: 'var(--ink-2)', maxWidth: 440, margin: '0 auto 24px' }}>
             Add Scott's policy positions to power the content agents. Each position includes a summary,
             talking points, supporting data, and competitor differentiation.
           </p>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 max-w-2xl mx-auto">
-            {['Economy & Jobs', 'Water Policy', 'Education', 'Public Safety', 'Healthcare', 'Energy', 'Housing', 'Immigration'].map((topic) => (
-              <button key={topic} className="p-3 rounded-lg text-xs font-medium transition-all hover:brightness-110"
-                style={{ background: 'var(--surface-2)', border: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10, maxWidth: 640, margin: '0 auto' }}>
+            {SEED_TOPICS.map(topic => (
+              <button key={topic} className="wb-btn" style={{ fontSize: 11, fontWeight: 500, justifyContent: 'center' }}>
                 + {topic}
               </button>
             ))}
           </div>
         </div>
       ) : (
-        <div className="space-y-3">
-          {positions.map((pos) => (
-            <div key={pos.id} className="rounded-xl overflow-hidden"
-              style={{ background: 'var(--surface-1)', border: '1px solid var(--border-color)' }}>
-              <button onClick={() => setExpanded(expanded === pos.id ? null : pos.id)}
-                className="w-full text-left p-5 flex items-center justify-between hover:brightness-105 transition-all">
-                <div className="flex items-center gap-3">
-                  <div className="w-2 h-8 rounded-full" style={{ background: STRENGTH_COLORS[pos.strength] || '#64748b' }} />
-                  <div>
-                    <p className="font-semibold">{pos.topic?.replaceAll('_', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}</p>
-                    {pos.subtopic && <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{pos.subtopic}</p>}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {positions.map(pos => {
+            const open = expanded === pos.id;
+            const color = STRENGTH_COLORS[pos.strength] || '#64748b';
+            return (
+              <div key={pos.id} className="wb-panel" style={{ overflow: 'hidden' }}>
+                <button
+                  onClick={() => setExpanded(open ? null : pos.id)}
+                  style={{
+                    width: '100%', textAlign: 'left', padding: 20,
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    background: 'transparent', border: 0, color: 'inherit', cursor: 'pointer',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+                    <span style={{ width: 3, height: 32, borderRadius: 2, background: color }} />
+                    <div style={{ minWidth: 0 }}>
+                      <p style={{ margin: 0, fontWeight: 600, fontSize: 14 }}>{titleCase(pos.topic)}</p>
+                      {pos.subtopic && <p style={{ margin: 0, fontSize: 11, color: 'var(--ink-2)' }}>{pos.subtopic}</p>}
+                    </div>
+                    <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 4, background: `${color}22`, color }}>
+                      {pos.strength.toUpperCase()}
+                    </span>
                   </div>
-                  <span className="text-xs px-2 py-0.5 rounded font-medium"
-                    style={{ background: `${STRENGTH_COLORS[pos.strength]}22`, color: STRENGTH_COLORS[pos.strength] }}>
-                    {pos.strength}
-                  </span>
-                </div>
-                {expanded === pos.id ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
-              </button>
-              {expanded === pos.id && (
-                <div className="px-5 pb-5 pt-0" style={{ borderTop: '1px solid var(--border-color)' }}>
-                  <div className="pt-4">
-                    <h3 className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-muted)' }}>Position Summary</h3>
-                    <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{pos.position_summary}</p>
+                  {open ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                </button>
+                {open && (
+                  <div style={{ padding: '0 20px 20px', borderTop: '1px solid var(--line)' }}>
+                    <div style={{ paddingTop: 16 }}>
+                      <h3 className="wb-eyebrow" style={{ marginBottom: 8 }}>Position summary</h3>
+                      <p style={{ margin: 0, fontSize: 13, color: 'var(--ink-1)', lineHeight: 1.55 }}>{pos.position_summary}</p>
 
-                    {pos.talking_points?.length > 0 && (
-                      <div className="mt-4">
-                        <h3 className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-muted)' }}>Talking Points</h3>
-                        <div className="space-y-1">
-                          {pos.talking_points.map((tp: string, i: number) => (
-                            <div key={i} className="flex gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
-                              <span style={{ color: 'var(--campaign-red)' }}>+</span>
-                              {tp}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+                      {pos.talking_points && pos.talking_points.length > 0 && (
+                        <>
+                          <h3 className="wb-eyebrow" style={{ marginTop: 16, marginBottom: 8 }}>Talking points</h3>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                            {pos.talking_points.map((tp, i) => (
+                              <div key={i} style={{ display: 'flex', gap: 8, fontSize: 13, color: 'var(--ink-1)' }}>
+                                <span style={{ color: 'var(--accent)' }}>+</span>
+                                <span>{tp}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </>
+                      )}
+                    </div>
                   </div>
-                </div>
-              )}
-            </div>
-          ))}
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

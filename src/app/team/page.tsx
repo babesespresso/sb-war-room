@@ -1,6 +1,18 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+/**
+ * Team — admin surface for inviting and managing War Room users.
+ *
+ * Endpoints called (admin-only — server enforces role via user_metadata.role === 'admin'):
+ *   GET    /api/admin/users                 → { users: [{ id, email, role, created_at }] }
+ *   POST   /api/admin/users  { email, role } → invites user via Supabase admin.inviteUserByEmail
+ *   DELETE /api/admin/users?id=<uuid>        → revokes user
+ *
+ * Preserves: invite form, role selector with helper copy, user table, revoke
+ * confirmation. Non-admin callers get 403 from the API and see the empty state.
+ */
+
+import { useEffect, useState } from 'react';
 import { Shield, UserPlus, Users, Trash2, Mail, CheckCircle, Loader2 } from 'lucide-react';
 import InfoTooltip from '@/components/ui/InfoTooltip';
 import PageHeader from '@/components/layout/PageHeader';
@@ -8,23 +20,19 @@ import PageHeader from '@/components/layout/PageHeader';
 interface UserProfile {
   id: string;
   email: string;
-  role: string;
+  role: 'admin' | 'user' | string;
   created_at: string;
 }
 
 export default function TeamPage() {
-  const [users, setUsers] = useState<UserProfile[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [users, setUsers]       = useState<UserProfile[]>([]);
+  const [loading, setLoading]   = useState(true);
   const [inviting, setInviting] = useState(false);
   const [newEmail, setNewEmail] = useState('');
-  const [newRole, setNewRole] = useState('user');
-  const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+  const [newRole, setNewRole]   = useState<'user' | 'admin'>('user');
+  const [message, setMessage]   = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
-  useEffect(() => {
-    fetchUsers();
-  }, []);
-
-  async function fetchUsers() {
+  const fetchUsers = async () => {
     setLoading(true);
     try {
       const res = await fetch('/api/admin/users');
@@ -32,43 +40,38 @@ export default function TeamPage() {
         const data = await res.json();
         setUsers(data.users || []);
       }
-    } catch (err) {
-      console.error(err);
-    }
-    setLoading(false);
-  }
+    } catch (e) { console.error(e); }
+    finally { setLoading(false); }
+  };
 
-  async function handleInvite(e: React.FormEvent) {
+  useEffect(() => { fetchUsers(); }, []);
+
+  const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newEmail.trim()) return;
-
     setInviting(true);
     setMessage(null);
-
     try {
       const res = await fetch('/api/admin/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: newEmail, role: newRole }),
       });
-
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to invite');
-
       setMessage({ text: `Invited ${newEmail} as ${newRole}`, type: 'success' });
       setNewEmail('');
       fetchUsers();
-      
       setTimeout(() => setMessage(null), 5000);
     } catch (err: any) {
       setMessage({ text: err.message, type: 'error' });
+    } finally {
+      setInviting(false);
     }
-    setInviting(false);
-  }
+  };
 
-  async function handleRemove(id: string) {
-    if (!window.confirm('Are you sure you want to revoke this user\'s access to the War Room?')) return;
-    
+  const handleRemove = async (id: string) => {
+    if (!window.confirm("Revoke this user's access to the War Room?")) return;
     try {
       const res = await fetch(`/api/admin/users?id=${id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Failed to remove user');
@@ -77,136 +80,139 @@ export default function TeamPage() {
       console.error(err);
       alert('Failed to remove user');
     }
-  }
+  };
 
   return (
-    <div className="p-4 md:p-6 flex flex-col gap-6" style={{ background: 'var(--bg-0)' }}>
+    <div style={{ padding: 'var(--pad-section)', display: 'flex', flexDirection: 'column', gap: 'var(--gap)', background: 'var(--bg-0)' }}>
       <PageHeader
         eyebrow="System · Access control"
-        title={<><Shield className="w-7 h-7 text-blue-400 inline-block mr-2 align-middle" />Team Access <InfoTooltip text="Manage who has access to the War Room. Only administrators can view this page, invite new users, or assign roles." /></>}
+        title={<>Team access <InfoTooltip text="Manage who has access to the War Room. Only administrators can view this page, invite new users, or assign roles." /></>}
         subtitle="Secure portal management and active personnel."
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Col: Invite */}
+        {/* Invite form ─────────────────────────────────────── */}
         <div className="lg:col-span-1">
-          <div className="rounded-xl p-5 mb-6" style={{ background: 'var(--surface-1)', border: '1px solid var(--border-color)' }}>
-            <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
-              <UserPlus className="w-5 h-5 text-emerald-400" />
-              Invite Personnel
+          <div className="wb-panel" style={{ padding: 20 }}>
+            <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <UserPlus size={18} style={{ color: 'var(--ok)' }} />
+              Invite personnel
             </h2>
-            
-            <form onSubmit={handleInvite} className="space-y-4">
+
+            <form onSubmit={handleInvite} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               {message && (
-                <div className={`p-3 rounded-lg text-xs font-medium flex items-center gap-2 ${message.type === 'success' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}>
-                  {message.type === 'success' ? <CheckCircle className="w-4 h-4" /> : <Shield className="w-4 h-4" />}
+                <div style={{
+                  padding: 10, borderRadius: 8, fontSize: 11, fontWeight: 500,
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  background: message.type === 'success' ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
+                  color: message.type === 'success' ? 'var(--ok)' : 'var(--bad)',
+                  border: `1px solid ${message.type === 'success' ? 'rgba(16,185,129,0.25)' : 'rgba(239,68,68,0.25)'}`,
+                }}>
+                  {message.type === 'success' ? <CheckCircle size={13} /> : <Shield size={13} />}
                   {message.text}
                 </div>
               )}
 
-              <div className="space-y-1">
-                <label className="text-[10px] uppercase tracking-widest font-bold text-slate-400 pl-1">Email Address</label>
-                <div className="relative">
+              <Field label="Email address">
+                <div style={{ position: 'relative' }}>
                   <input
                     type="email"
                     value={newEmail}
                     onChange={(e) => setNewEmail(e.target.value)}
                     required
-                    className="w-full px-4 py-2.5 rounded-lg text-sm transition-all outline-none focus:ring-1"
-                    style={{ background: 'var(--surface-2)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', '--tw-ring-color': 'var(--campaign-blue)' } as React.CSSProperties}
                     placeholder="name@campaign.com"
+                    style={inputStyle}
                   />
-                  <Mail className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                  <Mail size={14} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--ink-2)' }} />
                 </div>
-              </div>
+              </Field>
 
-              <div className="space-y-1">
-                <label className="text-[10px] uppercase tracking-widest font-bold text-slate-400 pl-1">Access Role</label>
+              <Field label="Access role">
                 <select
                   value={newRole}
-                  onChange={(e) => setNewRole(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-lg text-sm transition-all outline-none focus:ring-1"
-                  style={{ background: 'var(--surface-2)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', '--tw-ring-color': 'var(--campaign-blue)' } as React.CSSProperties}
+                  onChange={(e) => setNewRole(e.target.value as 'user' | 'admin')}
+                  style={inputStyle}
                 >
-                  <option value="user">Staff (Standard Access)</option>
-                  <option value="admin">Administrator (Full Access)</option>
+                  <option value="user">Staff (standard access)</option>
+                  <option value="admin">Administrator (full access)</option>
                 </select>
-                <p className="text-[10px] text-slate-500 mt-1 pl-1 leading-tight">
-                  {newRole === 'admin' ? 
-                    'Admins can invite others and delete data.' : 
-                    'Staff can view dashboard and generate content.'}
+                <p style={{ margin: '6px 0 0 4px', fontSize: 10, color: 'var(--ink-2)', lineHeight: 1.3 }}>
+                  {newRole === 'admin'
+                    ? 'Admins can invite others and delete data.'
+                    : 'Staff can view dashboard and generate content.'}
                 </p>
-              </div>
+              </Field>
 
               <button
                 type="submit"
                 disabled={inviting || !newEmail}
-                className="w-full py-2.5 rounded-lg text-sm font-bold uppercase tracking-wider transition-all hover:brightness-110 disabled:opacity-50 flex items-center justify-center gap-2"
-                style={{ background: 'var(--campaign-blue)', color: 'white' }}
+                className="wb-btn wb-btn-rapid"
+                style={{ width: '100%', justifyContent: 'center', letterSpacing: '0.05em', textTransform: 'uppercase', fontSize: 11 }}
               >
-                {inviting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Send Invite Link'}
+                {inviting ? <Loader2 size={14} className="animate-spin" /> : 'Send invite link'}
               </button>
             </form>
           </div>
         </div>
 
-        {/* Right Col: Active Users */}
+        {/* Active users ────────────────────────────────────── */}
         <div className="lg:col-span-2">
-          <div className="rounded-xl overflow-hidden" style={{ background: 'var(--surface-1)', border: '1px solid var(--border-color)' }}>
-            <div className="p-5 border-b flex items-center gap-2" style={{ borderColor: 'var(--border-color)' }}>
-              <Users className="w-5 h-5 text-slate-300" />
-              <h2 className="text-lg font-bold">Active Personnel</h2>
+          <div className="wb-panel" style={{ overflow: 'hidden' }}>
+            <div style={{ padding: 20, borderBottom: '1px solid var(--line)', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Users size={18} />
+              <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>Active personnel</h2>
+              <span style={{ fontSize: 11, color: 'var(--ink-2)', marginLeft: 'auto' }}>{users.length} user{users.length === 1 ? '' : 's'}</span>
             </div>
-            
-            <div className="bg-black/20">
+            <div>
               {loading ? (
-                <div className="p-8 flex justify-center">
-                  <Loader2 className="w-6 h-6 text-slate-500 animate-spin" />
+                <div style={{ padding: 32, display: 'flex', justifyContent: 'center' }}>
+                  <Loader2 size={24} className="animate-spin" style={{ color: 'var(--ink-2)' }} />
                 </div>
               ) : users.length === 0 ? (
-                <div className="p-8 text-center text-sm text-slate-500">
-                  No personnel found.
+                <div style={{ padding: 32, textAlign: 'center', fontSize: 13, color: 'var(--ink-2)' }}>
+                  No personnel found, or you don't have admin access.
                 </div>
               ) : (
-                <table className="w-full text-left text-sm">
-                  <thead className="bg-black/20 text-[10px] uppercase font-bold text-slate-500 tracking-wider">
-                    <tr>
-                      <th className="px-5 py-3 font-medium">Email</th>
-                      <th className="px-5 py-3 font-medium">Role</th>
-                      <th className="px-5 py-3 font-medium">Added</th>
-                      <th className="px-5 py-3 font-medium text-right">Actions</th>
+                <table style={{ width: '100%', textAlign: 'left', fontSize: 13, borderCollapse: 'collapse' }}>
+                  <thead style={{ background: 'var(--bg-2)' }}>
+                    <tr style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--ink-2)' }}>
+                      <th style={thStyle}>Email</th>
+                      <th style={thStyle}>Role</th>
+                      <th style={thStyle}>Added</th>
+                      <th style={{ ...thStyle, textAlign: 'right' }}>Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-white/5">
-                    {users.map((user) => (
-                      <tr key={user.id} className="hover:bg-white/5 transition-colors">
-                        <td className="px-5 py-4 flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center border border-white/10 shrink-0">
-                            <span className="text-xs font-bold text-slate-300">
-                              {user.email.substring(0, 2).toUpperCase()}
-                            </span>
-                          </div>
-                          <span className="font-medium text-slate-200">{user.email}</span>
+                  <tbody>
+                    {users.map(user => (
+                      <tr key={user.id} style={{ borderTop: '1px solid var(--line)' }}>
+                        <td style={{ ...tdStyle, display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <span style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--bg-2)', border: '1px solid var(--line)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: 'var(--ink-1)', flexShrink: 0 }}>
+                            {user.email.substring(0, 2).toUpperCase()}
+                          </span>
+                          <span style={{ fontWeight: 500, color: 'var(--ink-0)' }}>{user.email}</span>
                         </td>
-                        <td className="px-5 py-4">
-                          <span className={`text-[10px] uppercase font-bold tracking-wider px-2.5 py-1 rounded-full ${
-                            user.role === 'admin' 
-                              ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' 
-                              : 'bg-slate-500/20 text-slate-300 border border-slate-500/30'
-                          }`}>
+                        <td style={tdStyle}>
+                          <span style={{
+                            fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em',
+                            padding: '3px 8px', borderRadius: 999,
+                            background: user.role === 'admin' ? 'rgba(59,130,246,0.2)' : 'rgba(148,163,184,0.15)',
+                            color: user.role === 'admin' ? '#60a5fa' : 'var(--ink-1)',
+                            border: `1px solid ${user.role === 'admin' ? 'rgba(59,130,246,0.3)' : 'var(--line)'}`,
+                          }}>
                             {user.role}
                           </span>
                         </td>
-                        <td className="px-5 py-4 text-slate-500 text-xs">
+                        <td style={{ ...tdStyle, color: 'var(--ink-2)', fontSize: 11 }}>
                           {new Date(user.created_at).toLocaleDateString()}
                         </td>
-                        <td className="px-5 py-4 text-right">
+                        <td style={{ ...tdStyle, textAlign: 'right' }}>
                           <button
                             onClick={() => handleRemove(user.id)}
-                            className="p-2 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
-                            title="Revoke Access"
+                            className="wb-btn"
+                            style={{ padding: 6 }}
+                            title="Revoke access"
                           >
-                            <Trash2 className="w-4 h-4" />
+                            <Trash2 size={14} />
                           </button>
                         </td>
                       </tr>
@@ -218,6 +224,22 @@ export default function TeamPage() {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+const inputStyle: React.CSSProperties = {
+  width: '100%', padding: '10px 14px', borderRadius: 8, fontSize: 13, outline: 'none',
+  background: 'var(--bg-2)', border: '1px solid var(--line)', color: 'var(--ink-0)',
+};
+const thStyle: React.CSSProperties = { padding: '10px 16px', fontWeight: 700 };
+const tdStyle: React.CSSProperties = { padding: '12px 16px', verticalAlign: 'middle' };
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <label className="wb-eyebrow" style={{ display: 'block', marginBottom: 6, paddingLeft: 4 }}>{label}</label>
+      {children}
     </div>
   );
 }

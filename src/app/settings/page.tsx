@@ -1,37 +1,30 @@
 'use client';
 
+/**
+ * Settings — environment-variable + connection status + security.
+ *
+ * Endpoints:
+ *   GET /api/settings → { tenant, connections, checklist, envStatus, maskedValues, stats }
+ *
+ * Supabase auth is used client-side only for reading the current user and updating password.
+ * Secrets live in env vars; this UI displays masked values and lets ops see what is / isn't set.
+ */
+
 import { useState, useEffect, useCallback } from 'react';
 import {
   Settings, Shield, Zap, MessageSquare, Globe, CheckCircle, AlertCircle,
-  Loader2, RefreshCw, ExternalLink, WifiOff, Wifi, ChevronRight, User, Lock, Users
+  Loader2, RefreshCw, ExternalLink, Wifi, WifiOff, ChevronRight, User, Lock, Users,
 } from 'lucide-react';
 import InfoTooltip from '@/components/ui/InfoTooltip';
-import { createBrowserClient } from '@/lib/supabase/client';
 import PageHeader from '@/components/layout/PageHeader';
+import { createBrowserClient } from '@/lib/supabase/client';
 
-interface Connection {
-  connected: boolean;
-  detail?: string;
-}
-
-interface ChecklistItem {
-  label: string;
-  done: boolean;
-}
-
+interface Connection { connected: boolean; detail?: string }
+interface ChecklistItem { label: string; done: boolean }
 interface SettingsData {
   tenant: {
-    id: string;
-    name: string;
-    candidate_name: string;
-    campaign_type: string;
-    state: string;
-    timezone: string;
-    brief_time: string;
-    content_approval_required: boolean;
-    slack_channels: Record<string, string>;
-    api_keys: Record<string, string>;
-    brand_config: Record<string, string>;
+    id: string; name: string; candidate_name: string;
+    campaign_type: string; state: string; timezone: string; brief_time: string;
   };
   connections: Record<string, Connection>;
   checklist: ChecklistItem[];
@@ -41,284 +34,206 @@ interface SettingsData {
 }
 
 interface ConfigSection {
-  id: string;
-  title: string;
-  icon: React.ElementType;
-  connectionKey: string;
-  fields: { key: string; label: string; type: string; placeholder: string; required: boolean }[];
+  id: string; title: string; icon: React.ElementType; connectionKey: string;
+  fields: { key: string; label: string; required: boolean; placeholder?: string }[];
 }
 
 const CONFIG_SECTIONS: ConfigSection[] = [
   {
-    id: 'supabase',
-    title: 'Supabase',
-    icon: Shield,
-    connectionKey: 'supabase',
+    id: 'supabase', title: 'Supabase', icon: Shield, connectionKey: 'supabase',
     fields: [
-      { key: 'NEXT_PUBLIC_SUPABASE_URL', label: 'Supabase URL', type: 'url', placeholder: 'https://your-project.supabase.co', required: true },
-      { key: 'NEXT_PUBLIC_SUPABASE_ANON_KEY', label: 'Anon Key', type: 'password', placeholder: 'eyJhbG...', required: true },
-      { key: 'SUPABASE_SERVICE_ROLE_KEY', label: 'Service Role Key', type: 'password', placeholder: 'eyJhbG...', required: true },
+      { key: 'NEXT_PUBLIC_SUPABASE_URL', label: 'Supabase URL', required: true, placeholder: 'https://your-project.supabase.co' },
+      { key: 'NEXT_PUBLIC_SUPABASE_ANON_KEY', label: 'Anon Key', required: true, placeholder: 'eyJhbG…' },
+      { key: 'SUPABASE_SERVICE_ROLE_KEY', label: 'Service Role Key', required: true, placeholder: 'eyJhbG…' },
     ],
   },
   {
-    id: 'anthropic',
-    title: 'Anthropic (Claude)',
-    icon: Zap,
-    connectionKey: 'anthropic',
+    id: 'anthropic', title: 'Anthropic (Claude)', icon: Zap, connectionKey: 'anthropic',
+    fields: [{ key: 'ANTHROPIC_API_KEY', label: 'API Key', required: true, placeholder: 'sk-ant-…' }],
+  },
+  {
+    id: 'slack', title: 'Slack', icon: MessageSquare, connectionKey: 'slack',
     fields: [
-      { key: 'ANTHROPIC_API_KEY', label: 'API Key', type: 'password', placeholder: 'sk-ant-...', required: true },
+      { key: 'SLACK_BOT_TOKEN', label: 'Bot Token', required: true, placeholder: 'xoxb-…' },
+      { key: 'SLACK_SIGNING_SECRET', label: 'Signing Secret', required: true },
+      { key: 'SLACK_CHANNEL_WAR_ROOM', label: '#sb-war-room Channel ID', required: true, placeholder: 'C0000000000' },
+      { key: 'SLACK_CHANNEL_COMPETITOR_WATCH', label: '#competitor-watch Channel ID', required: true, placeholder: 'C0000000000' },
+      { key: 'SLACK_CHANNEL_CONTENT_QUEUE', label: '#content-queue Channel ID', required: true, placeholder: 'C0000000000' },
+      { key: 'SLACK_CHANNEL_NEWS_PULSE', label: '#news-pulse Channel ID', required: true, placeholder: 'C0000000000' },
+      { key: 'SLACK_CHANNEL_ANALYTICS', label: '#analytics Channel ID', required: true, placeholder: 'C0000000000' },
+      { key: 'SLACK_CHANNEL_REQUESTS', label: '#requests Channel ID', required: true, placeholder: 'C0000000000' },
     ],
   },
   {
-    id: 'slack',
-    title: 'Slack',
-    icon: MessageSquare,
-    connectionKey: 'slack',
+    id: 'ghl', title: 'MMDB', icon: Globe, connectionKey: 'ghl',
     fields: [
-      { key: 'SLACK_BOT_TOKEN', label: 'Bot Token', type: 'password', placeholder: 'xoxb-...', required: true },
-      { key: 'SLACK_SIGNING_SECRET', label: 'Signing Secret', type: 'password', placeholder: '', required: true },
-      { key: 'SLACK_CHANNEL_WAR_ROOM', label: '#sb-war-room Channel ID', type: 'text', placeholder: 'C0000000000', required: true },
-      { key: 'SLACK_CHANNEL_COMPETITOR_WATCH', label: '#competitor-watch Channel ID', type: 'text', placeholder: 'C0000000000', required: true },
-      { key: 'SLACK_CHANNEL_CONTENT_QUEUE', label: '#content-queue Channel ID', type: 'text', placeholder: 'C0000000000', required: true },
-      { key: 'SLACK_CHANNEL_NEWS_PULSE', label: '#news-pulse Channel ID', type: 'text', placeholder: 'C0000000000', required: true },
-      { key: 'SLACK_CHANNEL_ANALYTICS', label: '#analytics Channel ID', type: 'text', placeholder: 'C0000000000', required: true },
-      { key: 'SLACK_CHANNEL_REQUESTS', label: '#requests Channel ID', type: 'text', placeholder: 'C0000000000', required: true },
+      { key: 'GHL_API_KEY', label: 'API Key', required: false },
+      { key: 'GHL_LOCATION_ID', label: 'Location ID', required: false },
     ],
   },
   {
-    id: 'ghl',
-    title: 'MMDB',
-    icon: Globe,
-    connectionKey: 'ghl',
+    id: 'social', title: 'Social platforms', icon: Globe, connectionKey: 'twitter',
     fields: [
-      { key: 'GHL_API_KEY', label: 'API Key', type: 'password', placeholder: '', required: false },
-      { key: 'GHL_LOCATION_ID', label: 'Location ID', type: 'text', placeholder: '', required: false },
-    ],
-  },
-  {
-    id: 'social',
-    title: 'Social Platforms',
-    icon: Globe,
-    connectionKey: 'twitter',
-    fields: [
-      { key: 'META_ACCESS_TOKEN', label: 'Meta Access Token', type: 'password', placeholder: '', required: false },
-      { key: 'META_PAGE_ID', label: 'Meta Page ID', type: 'text', placeholder: '', required: false },
-      { key: 'TWITTER_API_KEY', label: 'X API Key', type: 'password', placeholder: '', required: false },
-      { key: 'TWITTER_ACCESS_TOKEN', label: 'X Access Token', type: 'password', placeholder: '', required: false },
+      { key: 'META_ACCESS_TOKEN', label: 'Meta Access Token', required: false },
+      { key: 'META_PAGE_ID', label: 'Meta Page ID', required: false },
+      { key: 'TWITTER_API_KEY', label: 'X API Key', required: false },
+      { key: 'TWITTER_ACCESS_TOKEN', label: 'X Access Token', required: false },
     ],
   },
 ];
 
 function ConnectionBadge({ connection }: { connection?: Connection }) {
   if (!connection) return null;
+  const on = connection.connected;
   return (
-    <span
-      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold uppercase tracking-wide"
-      style={{
-        background: connection.connected
-          ? 'rgba(34, 197, 94, 0.12)'
-          : 'rgba(239, 68, 68, 0.12)',
-        color: connection.connected ? '#4ade80' : '#f87171',
-        border: `1px solid ${connection.connected ? 'rgba(34, 197, 94, 0.25)' : 'rgba(239, 68, 68, 0.25)'}`,
-      }}
-    >
-      {connection.connected ? <Wifi className="w-3 h-3" /> : <WifiOff className="w-3 h-3" />}
-      {connection.connected ? 'Connected' : 'Not Connected'}
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: 5,
+      padding: '4px 10px', borderRadius: 999, fontSize: 11, fontWeight: 700,
+      textTransform: 'uppercase', letterSpacing: 0.8,
+      background: on ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.12)',
+      color: on ? '#4ade80' : '#f87171',
+      border: `1px solid ${on ? 'rgba(34,197,94,0.25)' : 'rgba(239,68,68,0.25)'}`,
+    }}>
+      {on ? <Wifi size={11} /> : <WifiOff size={11} />}
+      {on ? 'Connected' : 'Not connected'}
     </span>
   );
 }
 
 export default function SettingsPage() {
   const [activeSection, setActiveSection] = useState(0);
-  const [data, setData] = useState<SettingsData | null>(null);
+  const [data, setData]       = useState<SettingsData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError]     = useState<string | null>(null);
 
-  // Auth / Security State
-  const [userRole, setUserRole] = useState<string>('user');
-  const [userEmail, setUserEmail] = useState<string>('');
+  const [userRole, setUserRole]   = useState('user');
+  const [userEmail, setUserEmail] = useState('');
   const [newPassword, setNewPassword] = useState('');
-  const [passwordUpdating, setPasswordUpdating] = useState(false);
-  const [passwordMsg, setPasswordMsg] = useState<{text: string, type: 'success'|'error'} | null>(null);
+  const [pwUpdating, setPwUpdating]   = useState(false);
+  const [pwMsg, setPwMsg]             = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
   useEffect(() => {
     const supabase = createBrowserClient();
     supabase.auth.getUser().then(({ data }) => {
       if (data?.user) {
         setUserEmail(data.user.email || '');
-        setUserRole(data.user.user_metadata?.role || 'user');
+        setUserRole((data.user.user_metadata as any)?.role || 'user');
       }
     });
   }, []);
 
-  const handleUpdatePassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newPassword || newPassword.length < 6) {
-      setPasswordMsg({ text: 'Password must be at least 6 characters', type: 'error' });
-      return;
-    }
-    setPasswordUpdating(true);
-    setPasswordMsg(null);
-    const supabase = createBrowserClient();
-    const { error } = await supabase.auth.updateUser({ password: newPassword });
-    if (error) {
-      setPasswordMsg({ text: error.message, type: 'error' });
-    } else {
-      setPasswordMsg({ text: 'Password updated successfully!', type: 'success' });
-      setNewPassword('');
-    }
-    setPasswordUpdating(false);
-  };
-
   const fetchSettings = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+    setLoading(true); setError(null);
     try {
       const res = await fetch('/api/settings');
       if (!res.ok) throw new Error(`Failed to load settings: ${res.status}`);
-      const json = await res.json();
-      setData(json);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to load');
-    } finally {
-      setLoading(false);
-    }
+      setData(await res.json());
+    } catch (e: any) {
+      setError(e.message || 'Failed to load');
+    } finally { setLoading(false); }
   }, []);
+  useEffect(() => { fetchSettings(); }, [fetchSettings]);
 
-  useEffect(() => {
-    fetchSettings();
-  }, [fetchSettings]);
+  const handleUpdatePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPassword || newPassword.length < 6) {
+      return setPwMsg({ text: 'Password must be at least 6 characters', type: 'error' });
+    }
+    setPwUpdating(true); setPwMsg(null);
+    const supabase = createBrowserClient();
+    const { error: err } = await supabase.auth.updateUser({ password: newPassword });
+    setPwMsg(err ? { text: err.message, type: 'error' } : { text: 'Password updated successfully!', type: 'success' });
+    if (!err) setNewPassword('');
+    setPwUpdating(false);
+  };
 
-  const completedItems = data?.checklist?.filter((c) => c.done).length || 0;
-  const totalItems = data?.checklist?.length || 8;
-  const completionPct = Math.round((completedItems / totalItems) * 100);
-
-  const section = CONFIG_SECTIONS[activeSection];
-  const sectionConnection = data?.connections?.[section.connectionKey];
+  const completed     = data?.checklist?.filter(c => c.done).length || 0;
+  const totalItems    = data?.checklist?.length || 8;
+  const completionPct = Math.round((completed / totalItems) * 100);
+  const section       = CONFIG_SECTIONS[activeSection];
+  const sectionConn   = data?.connections?.[section.connectionKey];
 
   return (
-    <div className="p-4 md:p-6 flex flex-col gap-6" style={{ background: 'var(--bg-0)' }}>
+    <div style={{ padding: 'var(--pad-section)', display: 'flex', flexDirection: 'column', gap: 'var(--gap)', background: 'var(--bg-0)' }}>
       <PageHeader
         eyebrow="System · Configuration"
-        title={<><Settings className="w-7 h-7 inline-block mr-2 align-middle" style={{ color: 'var(--accent)' }} />Settings <InfoTooltip text="Configure all API connections, Slack channels, social platform integrations, and campaign settings needed to power the War Room." /></>}
+        title={<>Settings <InfoTooltip text="Configure API connections, Slack channels, social-platform integrations, and campaign settings." /></>}
         subtitle="API connections, Slack channels, and system configuration."
         actions={
-          <button onClick={fetchSettings} disabled={loading} className="wb-btn" style={{ background: 'var(--bg-2)' }}>
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Refresh Status
+          <button onClick={fetchSettings} disabled={loading} className="wb-btn">
+            <RefreshCw size={13} className={loading ? 'animate-spin' : ''} /> Refresh status
           </button>
         }
       />
 
       {error && (
-        <div className="mb-6 p-4 rounded-lg" style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#f87171' }}>
-          <p className="text-sm font-medium">{error}</p>
+        <div style={{ padding: 12, borderRadius: 10, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#f87171', fontSize: 13 }}>
+          {error}
         </div>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Sidebar */}
-        <div className="col-span-1 lg:col-span-3 space-y-1">
+        <div className="lg:col-span-3" style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
           {CONFIG_SECTIONS.map((s, i) => {
             const Icon = s.icon;
             const conn = data?.connections?.[s.connectionKey];
-            const isActive = activeSection === i;
+            const active = activeSection === i;
             return (
-              <button
-                key={s.id}
-                onClick={() => setActiveSection(i)}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all text-left group"
-                style={{
-                  background: isActive ? 'var(--navy-800)' : 'transparent',
-                  color: isActive ? 'white' : 'var(--text-secondary)',
-                }}
-              >
-                <Icon className="w-4 h-4 flex-shrink-0" />
-                <span className="flex-1">{s.title}</span>
-                {conn && (
-                  <span
-                    className="w-2 h-2 rounded-full flex-shrink-0"
-                    style={{ background: conn.connected ? '#4ade80' : '#f87171' }}
-                  />
-                )}
-                <ChevronRight
-                  className="w-3.5 h-3.5 flex-shrink-0 transition-transform"
-                  style={{
-                    opacity: isActive ? 1 : 0,
-                    transform: isActive ? 'translateX(0)' : 'translateX(-4px)',
-                  }}
-                />
+              <button key={s.id} onClick={() => setActiveSection(i)} className="wb-btn" style={{
+                width: '100%', justifyContent: 'flex-start', padding: '10px 14px',
+                background: active ? 'var(--bg-2)' : 'transparent',
+                color: active ? 'var(--ink-1)' : 'var(--ink-2)',
+                border: `1px solid ${active ? 'var(--line)' : 'transparent'}`,
+              }}>
+                <Icon size={14} style={{ flexShrink: 0 }} />
+                <span style={{ flex: 1, textAlign: 'left' }}>{s.title}</span>
+                {conn && <span style={{ width: 8, height: 8, borderRadius: '50%', background: conn.connected ? '#4ade80' : '#f87171', flexShrink: 0 }} />}
+                <ChevronRight size={12} style={{ opacity: active ? 1 : 0, transform: `translateX(${active ? 0 : -4}px)`, transition: 'all 150ms' }} />
               </button>
             );
           })}
 
-          {/* Setup Checklist */}
-          <div className="mt-6 rounded-xl overflow-hidden" style={{ background: 'var(--surface-1)', border: '1px solid var(--border-color)' }}>
-            <div className="p-4" style={{ borderBottom: '1px solid var(--border-color)' }}>
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="text-xs font-semibold uppercase" style={{ color: 'var(--text-muted)' }}>
-                  Setup Progress
-                </h3>
-                <span className="text-xs font-bold" style={{ color: completionPct === 100 ? '#4ade80' : 'var(--campaign-blue)' }}>
-                  {completionPct}%
-                </span>
+          {/* Setup progress */}
+          <div className="wb-panel" style={{ marginTop: 20, overflow: 'hidden' }}>
+            <div style={{ padding: 14, borderBottom: '1px solid var(--line)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                <h3 className="wb-eyebrow" style={{ margin: 0 }}>Setup progress</h3>
+                <span style={{ fontSize: 12, fontWeight: 800, color: completionPct === 100 ? '#4ade80' : '#60a5fa' }}>{completionPct}%</span>
               </div>
-              <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--surface-2)' }}>
-                <div
-                  className="h-full rounded-full transition-all duration-700"
-                  style={{
-                    width: `${completionPct}%`,
-                    background: completionPct === 100
-                      ? 'linear-gradient(90deg, #4ade80, #22c55e)'
-                      : 'linear-gradient(90deg, var(--campaign-blue), #60a5fa)',
-                  }}
-                />
+              <div style={{ width: '100%', height: 6, borderRadius: 999, background: 'var(--bg-2)', overflow: 'hidden' }}>
+                <div style={{
+                  width: `${completionPct}%`, height: '100%',
+                  background: completionPct === 100 ? 'linear-gradient(90deg,#4ade80,#22c55e)' : 'linear-gradient(90deg,#60a5fa,#3b82f6)',
+                  transition: 'width 700ms',
+                }} />
               </div>
             </div>
-            <div className="p-4 space-y-2.5">
+            <div style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
               {loading ? (
-                <div className="flex items-center justify-center py-4">
-                  <Loader2 className="w-4 h-4 animate-spin" style={{ color: 'var(--text-muted)' }} />
+                <Loader2 size={14} className="animate-spin" style={{ color: 'var(--ink-2)', margin: '12px auto' }} />
+              ) : data?.checklist?.map((item, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  {item.done
+                    ? <CheckCircle size={13} style={{ color: '#4ade80', flexShrink: 0 }} />
+                    : <AlertCircle size={13} style={{ color: 'var(--ink-2)', flexShrink: 0 }} />}
+                  <span style={{ fontSize: 11, color: item.done ? 'var(--ink-1)' : 'var(--ink-2)', textDecoration: item.done ? 'line-through' : 'none', opacity: item.done ? 0.7 : 1 }}>
+                    {item.label}
+                  </span>
                 </div>
-              ) : (
-                data?.checklist?.map((item, i) => (
-                  <div key={i} className="flex items-center gap-2.5">
-                    {item.done ? (
-                      <CheckCircle className="w-3.5 h-3.5 flex-shrink-0" style={{ color: '#4ade80' }} />
-                    ) : (
-                      <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" style={{ color: 'var(--text-muted)' }} />
-                    )}
-                    <span
-                      className="text-xs"
-                      style={{
-                        color: item.done ? 'var(--text-secondary)' : 'var(--text-muted)',
-                        textDecoration: item.done ? 'line-through' : 'none',
-                        opacity: item.done ? 0.7 : 1,
-                      }}
-                    >
-                      {item.label}
-                    </span>
-                  </div>
-                ))
-              )}
+              ))}
             </div>
           </div>
 
           {/* Stats */}
           {data?.stats && (
-            <div className="mt-4 p-4 rounded-xl" style={{ background: 'var(--surface-1)', border: '1px solid var(--border-color)' }}>
-              <h3 className="text-xs font-semibold uppercase mb-3" style={{ color: 'var(--text-muted)' }}>
-                Database
-              </h3>
+            <div className="wb-panel" style={{ marginTop: 12, padding: 14 }}>
+              <h3 className="wb-eyebrow" style={{ margin: '0 0 10px' }}>Database</h3>
               <div className="grid grid-cols-2 gap-3">
-                {[
-                  { label: 'Competitors', value: data.stats.competitors },
-                  { label: 'Positions', value: data.stats.positions },
-                  { label: 'Briefs', value: data.stats.briefs },
-                  { label: 'Agent Runs', value: data.stats.agentRuns },
-                ].map((s) => (
-                  <div key={s.label}>
-                    <div className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>{s.value}</div>
-                    <div className="text-[10px] uppercase" style={{ color: 'var(--text-muted)' }}>{s.label}</div>
+                {(['competitors', 'positions', 'briefs', 'agentRuns'] as const).map(k => (
+                  <div key={k}>
+                    <div style={{ fontSize: 18, fontWeight: 800 }}>{data.stats[k]}</div>
+                    <div className="wb-eyebrow">{k === 'agentRuns' ? 'Agent runs' : k}</div>
                   </div>
                 ))}
               </div>
@@ -326,228 +241,178 @@ export default function SettingsPage() {
           )}
         </div>
 
-        {/* Config Details */}
-        <div className="col-span-1 lg:col-span-9">
-          <div className="rounded-xl overflow-hidden" style={{ background: 'var(--surface-1)', border: '1px solid var(--border-color)' }}>
-            {/* Section Header */}
-            <div className="p-6 flex items-center justify-between" style={{ borderBottom: '1px solid var(--border-color)' }}>
+        {/* Details */}
+        <div className="lg:col-span-9" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--gap)' }}>
+          <div className="wb-panel" style={{ overflow: 'hidden' }}>
+            {/* Section header */}
+            <div style={{ padding: 20, borderBottom: '1px solid var(--line)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div>
-                <h2 className="text-lg font-bold flex items-center gap-3">
-                  {section.title} Configuration
-                </h2>
-                <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
-                  {sectionConnection?.detail || 'Environment variable status'}
-                </p>
+                <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>{section.title} configuration</h2>
+                <p style={{ margin: '2px 0 0', fontSize: 11, color: 'var(--ink-2)' }}>{sectionConn?.detail || 'Environment variable status'}</p>
               </div>
-              <ConnectionBadge connection={sectionConnection} />
+              <ConnectionBadge connection={sectionConn} />
             </div>
 
-            {/* Fields */}
-            <div className="p-6 space-y-5">
+            <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
               {loading ? (
-                <div className="flex items-center justify-center py-12">
-                  <Loader2 className="w-6 h-6 animate-spin" style={{ color: 'var(--text-muted)' }} />
+                <div style={{ textAlign: 'center', padding: 48 }}>
+                  <Loader2 size={20} className="animate-spin" style={{ color: 'var(--ink-2)' }} />
                 </div>
-              ) : (
-                section.fields.map((field) => {
-                  const isSet = data?.envStatus?.[field.key] || false;
-                  const maskedValue = data?.maskedValues?.[field.key] || '';
-                  return (
-                    <div key={field.key}>
-                      <label className="flex items-center gap-2 text-sm font-medium mb-1.5">
-                        {field.label}
-                        {field.required && (
-                          <span
-                            className="text-[10px] px-1.5 py-0.5 rounded font-semibold uppercase tracking-wide"
-                            style={{ background: 'rgba(220, 38, 38, 0.15)', color: '#fca5a5' }}
-                          >
-                            Required
-                          </span>
-                        )}
-                        {isSet && (
-                          <span
-                            className="text-[10px] px-1.5 py-0.5 rounded font-semibold uppercase tracking-wide"
-                            style={{ background: 'rgba(34, 197, 94, 0.12)', color: '#4ade80' }}
-                          >
-                            Set
-                          </span>
-                        )}
-                        {!isSet && field.required && (
-                          <span
-                            className="text-[10px] px-1.5 py-0.5 rounded font-semibold uppercase tracking-wide"
-                            style={{ background: 'rgba(251, 191, 36, 0.12)', color: '#fbbf24' }}
-                          >
-                            Missing
-                          </span>
-                        )}
-                      </label>
-                      <div className="flex gap-2">
-                        <div
-                          className="flex-1 flex items-center px-4 py-2.5 rounded-lg text-sm"
-                          style={{
-                            background: 'var(--surface-2)',
-                            border: `1px solid ${isSet ? 'rgba(34, 197, 94, 0.3)' : 'var(--border-color)'}`,
-                            color: isSet ? 'var(--text-secondary)' : 'var(--text-muted)',
-                          }}
-                        >
-                          {isSet ? (
-                            <span className="font-mono text-xs">{maskedValue}</span>
-                          ) : (
-                            <span className="italic text-xs">{field.placeholder || 'Not configured'}</span>
-                          )}
-                        </div>
-                        <div
-                          className="flex items-center px-3 rounded-lg text-[11px] font-mono flex-shrink-0"
-                          style={{
-                            background: 'var(--surface-2)',
-                            color: 'var(--text-muted)',
-                            border: '1px solid var(--border-color)',
-                          }}
-                        >
-                          {field.key}
-                        </div>
+              ) : section.fields.map(field => {
+                const isSet   = data?.envStatus?.[field.key] || false;
+                const masked  = data?.maskedValues?.[field.key] || '';
+                return (
+                  <div key={field.key}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, marginBottom: 6 }}>
+                      {field.label}
+                      {field.required && (
+                        <span style={{ fontSize: 9, padding: '1px 6px', borderRadius: 4, fontWeight: 700, textTransform: 'uppercase', background: 'rgba(220,38,38,0.15)', color: '#fca5a5' }}>Required</span>
+                      )}
+                      {isSet && (
+                        <span style={{ fontSize: 9, padding: '1px 6px', borderRadius: 4, fontWeight: 700, textTransform: 'uppercase', background: 'rgba(34,197,94,0.12)', color: '#4ade80' }}>Set</span>
+                      )}
+                      {!isSet && field.required && (
+                        <span style={{ fontSize: 9, padding: '1px 6px', borderRadius: 4, fontWeight: 700, textTransform: 'uppercase', background: 'rgba(251,191,36,0.12)', color: '#fbbf24' }}>Missing</span>
+                      )}
+                    </label>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <div style={{
+                        flex: 1, padding: '10px 14px', borderRadius: 8, fontSize: 12,
+                        background: 'var(--bg-2)',
+                        border: `1px solid ${isSet ? 'rgba(34,197,94,0.3)' : 'var(--line)'}`,
+                        color: isSet ? 'var(--ink-1)' : 'var(--ink-2)',
+                      }}>
+                        {isSet
+                          ? <span style={{ fontFamily: 'ui-monospace, SF Mono, monospace' }}>{masked}</span>
+                          : <span style={{ fontStyle: 'italic' }}>{field.placeholder || 'Not configured'}</span>}
                       </div>
+                      <div style={{
+                        display: 'flex', alignItems: 'center', padding: '0 10px', borderRadius: 8,
+                        fontSize: 11, fontFamily: 'ui-monospace, SF Mono, monospace',
+                        background: 'var(--bg-2)', color: 'var(--ink-2)',
+                        border: '1px solid var(--line)',
+                      }}>{field.key}</div>
                     </div>
-                  );
-                })
-              )}
+                  </div>
+                );
+              })}
             </div>
 
-            {/* Footer */}
-            <div className="p-6 flex items-center justify-between" style={{ borderTop: '1px solid var(--border-color)', background: 'var(--surface-2)' }}>
-              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                Environment variables are managed via{' '}
-                <code className="px-1 py-0.5 rounded" style={{ background: 'var(--surface-0)' }}>
-                  .env.local
-                </code>{' '}
+            <div style={{ padding: 16, borderTop: '1px solid var(--line)', background: 'var(--bg-2)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+              <p style={{ margin: 0, fontSize: 11, color: 'var(--ink-2)' }}>
+                Managed via{' '}
+                <code style={{ padding: '1px 4px', borderRadius: 3, background: 'var(--bg-0)' }}>.env.local</code>{' '}
                 locally, or{' '}
-                <code className="px-1 py-0.5 rounded" style={{ background: 'var(--surface-0)' }}>
-                  Vercel Environment Variables
-                </code>{' '}
+                <code style={{ padding: '1px 4px', borderRadius: 3, background: 'var(--bg-0)' }}>Vercel Environment Variables</code>{' '}
                 in production.
               </p>
-              <a
-                href="https://vercel.com/babesespressos-projects/sb-war-room/settings/environment-variables"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-lg transition-all"
-                style={{ color: 'var(--campaign-blue)', background: 'rgba(30, 144, 255, 0.08)' }}
-              >
-                <ExternalLink className="w-3 h-3" />
-                Vercel Settings
+              <a href="https://vercel.com" target="_blank" rel="noopener noreferrer" className="wb-btn" style={{ color: '#60a5fa', background: 'rgba(59,130,246,0.08)' }}>
+                <ExternalLink size={11} /> Vercel settings
               </a>
             </div>
           </div>
 
-          {/* Tenant Info Card */}
+          {/* Tenant */}
           {data?.tenant && (
-            <div className="mt-6 rounded-xl overflow-hidden" style={{ background: 'var(--surface-1)', border: '1px solid var(--border-color)' }}>
-              <div className="p-6" style={{ borderBottom: '1px solid var(--border-color)' }}>
-                <h2 className="text-lg font-bold flex items-center gap-1.5">Campaign Configuration <InfoTooltip text="Core campaign settings including candidate name, campaign type, timezone, and content approval requirements. Changes here affect all AI-generated content and scheduling." /></h2>
-                <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
-                  Tenant: <code className="px-1 py-0.5 rounded" style={{ background: 'var(--surface-2)' }}>{data.tenant.id}</code>
+            <div className="wb-panel" style={{ overflow: 'hidden' }}>
+              <div style={{ padding: 20, borderBottom: '1px solid var(--line)' }}>
+                <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  Campaign configuration <InfoTooltip text="Core campaign settings including candidate name, type, timezone, and approval rules." />
+                </h2>
+                <p style={{ margin: '4px 0 0', fontSize: 11, color: 'var(--ink-2)' }}>
+                  Tenant: <code style={{ padding: '1px 4px', borderRadius: 3, background: 'var(--bg-2)' }}>{data.tenant.id}</code>
                 </p>
               </div>
-              <div className="p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div style={{ padding: 20 }} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {[
                   { label: 'Campaign', value: data.tenant.name },
                   { label: 'Candidate', value: data.tenant.candidate_name },
                   { label: 'Type', value: data.tenant.campaign_type },
                   { label: 'State', value: data.tenant.state },
                   { label: 'Timezone', value: data.tenant.timezone },
-                  { label: 'Daily Brief Time', value: data.tenant.brief_time },
-                ].map((item) => (
+                  { label: 'Daily brief time', value: data.tenant.brief_time },
+                ].map(item => (
                   <div key={item.label}>
-                    <div className="text-[10px] uppercase font-semibold mb-1" style={{ color: 'var(--text-muted)' }}>
-                      {item.label}
-                    </div>
-                    <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
-                      {item.value || '—'}
-                    </div>
+                    <div className="wb-eyebrow">{item.label}</div>
+                    <div style={{ fontSize: 13, fontWeight: 600, marginTop: 2 }}>{item.value || '—'}</div>
                   </div>
                 ))}
               </div>
             </div>
           )}
 
-          {/* Account & Security Card */}
-          <div className="mt-6 rounded-xl overflow-hidden" style={{ background: 'var(--surface-1)', border: '1px solid var(--border-color)' }}>
-            <div className="p-6" style={{ borderBottom: '1px solid var(--border-color)' }}>
-              <h2 className="text-lg font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
-                <User className="w-5 h-5 text-purple-400" />
-                Account & Security
+          {/* Account & Security */}
+          <div className="wb-panel" style={{ overflow: 'hidden' }}>
+            <div style={{ padding: 20, borderBottom: '1px solid var(--line)' }}>
+              <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <User size={18} style={{ color: '#a78bfa' }} /> Account & security
               </h2>
             </div>
-            
-            <div className="p-6 grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {/* Password Update */}
+            <div style={{ padding: 20 }} className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               <div>
-                <h3 className="text-sm font-bold flex items-center gap-2 mb-4" style={{ color: 'var(--text-secondary)' }}>
-                  <Lock className="w-4 h-4 text-slate-400" />
-                  Change Credentials
+                <h3 style={{ margin: '0 0 14px', fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6, color: 'var(--ink-1)' }}>
+                  <Lock size={14} style={{ color: 'var(--ink-2)' }} /> Change credentials
                 </h3>
-                <form onSubmit={handleUpdatePassword} className="space-y-4">
-                  {passwordMsg && (
-                    <div className={`p-3 rounded-lg text-xs font-medium flex items-center gap-2 ${passwordMsg.type === 'success' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}>
-                      {passwordMsg.type === 'success' ? <CheckCircle className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
-                      {passwordMsg.text}
+                <form onSubmit={handleUpdatePassword} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  {pwMsg && (
+                    <div style={{
+                      padding: 10, borderRadius: 8, fontSize: 11, fontWeight: 500,
+                      display: 'flex', alignItems: 'center', gap: 6,
+                      background: pwMsg.type === 'success' ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
+                      color: pwMsg.type === 'success' ? '#4ade80' : '#f87171',
+                      border: `1px solid ${pwMsg.type === 'success' ? 'rgba(16,185,129,0.2)' : 'rgba(239,68,68,0.2)'}`,
+                    }}>
+                      {pwMsg.type === 'success' ? <CheckCircle size={14} /> : <AlertCircle size={14} />} {pwMsg.text}
                     </div>
                   )}
-                  <div className="space-y-1">
-                    <label className="text-[10px] uppercase tracking-widest font-bold text-slate-400 pl-1">Email (Read Only)</label>
-                    <input disabled value={userEmail} className="w-full px-4 py-2.5 rounded-lg text-sm bg-black/20 text-slate-500 border" style={{ borderColor: 'var(--border-color)' }} />
+                  <div>
+                    <label className="wb-eyebrow" style={{ display: 'block', marginBottom: 4 }}>Email (read-only)</label>
+                    <input disabled value={userEmail} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, fontSize: 12, background: 'var(--bg-0)', color: 'var(--ink-2)', border: '1px solid var(--line)' }} />
                   </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] uppercase tracking-widest font-bold text-slate-400 pl-1">New Password</label>
+                  <div>
+                    <label className="wb-eyebrow" style={{ display: 'block', marginBottom: 4 }}>New password</label>
                     <input
                       type="password"
                       value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
+                      onChange={e => setNewPassword(e.target.value)}
                       placeholder="Enter new password"
-                      className="w-full px-4 py-2.5 rounded-lg text-sm transition-all focus:outline-none focus:ring-1"
-                      style={{ background: 'var(--surface-2)', border: '1px solid var(--border-color)', color: 'white', '--tw-ring-color': 'var(--campaign-blue)' } as React.CSSProperties}
+                      style={{ width: '100%', padding: '10px 14px', borderRadius: 8, fontSize: 12, background: 'var(--bg-2)', border: '1px solid var(--line)', color: 'var(--ink-1)' }}
                     />
                   </div>
-                  <button disabled={passwordUpdating || !newPassword} className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-lg disabled:opacity-50 transition-colors">
-                    {passwordUpdating ? 'Updating...' : 'Update Password'}
+                  <button type="submit" disabled={pwUpdating || !newPassword} className="wb-btn wb-btn-rapid" style={{ alignSelf: 'flex-start', opacity: (pwUpdating || !newPassword) ? 0.5 : 1 }}>
+                    {pwUpdating ? 'Updating…' : 'Update password'}
                   </button>
                 </form>
               </div>
 
-              {/* Team Access Shortcut (If Admin) & Global Actions */}
-              <div className="flex flex-col gap-6">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
                 {userRole === 'admin' && (
                   <div>
-                    <h3 className="text-sm font-bold flex items-center gap-2 mb-4" style={{ color: 'var(--text-secondary)' }}>
-                      <Users className="w-4 h-4 text-slate-400" />
-                      Personnel Management
+                    <h3 style={{ margin: '0 0 14px', fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <Users size={14} style={{ color: 'var(--ink-2)' }} /> Personnel management
                     </h3>
-                    <div className="p-4 rounded-xl border flex flex-col gap-3" style={{ background: 'var(--surface-2)', borderColor: 'var(--border-color)' }}>
-                      <p className="text-sm text-slate-400">
-                        You are logged in as an Administrator. You have the ability to explicitly invite new staff, issue credentials, and assign internal roles.
+                    <div style={{ padding: 14, borderRadius: 10, background: 'var(--bg-2)', border: '1px solid var(--line)', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      <p style={{ margin: 0, fontSize: 12, color: 'var(--ink-2)' }}>
+                        You are logged in as an Administrator. You can invite new staff, issue credentials, and assign internal roles.
                       </p>
-                      <a href="/team" className="inline-flex items-center justify-center gap-2 w-full py-2.5 rounded-lg text-sm font-bold border border-white/10 hover:bg-white/5 transition-colors text-white">
-                        <Shield className="w-4 h-4 text-blue-400" />
-                        Manage Team Access
+                      <a href="/team" className="wb-btn" style={{ justifyContent: 'center', border: '1px solid var(--line)' }}>
+                        <Shield size={14} style={{ color: '#60a5fa' }} /> Manage team access
                       </a>
                     </div>
                   </div>
                 )}
-                
-                {/* Global Sign Out for Mobile Users */}
                 <div>
-                   <h3 className="text-sm font-bold flex items-center gap-2 mb-4" style={{ color: 'var(--text-secondary)' }}>
-                    Session Operations
-                  </h3>
-                  <button 
+                  <h3 style={{ margin: '0 0 14px', fontSize: 13, fontWeight: 700 }}>Session operations</h3>
+                  <button
                     onClick={async () => {
                       const supabase = createBrowserClient();
                       await supabase.auth.signOut();
                       window.location.href = '/login';
                     }}
-                    className="w-full sm:w-auto px-6 py-2.5 rounded-lg text-sm font-bold border flex items-center justify-center gap-2 transition-all hover:bg-red-500/10 text-red-400 border-red-500/20"
+                    className="wb-btn"
+                    style={{ color: '#f87171', border: '1px solid rgba(239,68,68,0.2)', background: 'transparent' }}
                   >
-                    Secure Sign Out
+                    Secure sign out
                   </button>
                 </div>
               </div>

@@ -65,6 +65,10 @@
   --accent-dim: rgba(229,72,77,0.12);
   --accent-line: rgba(229,72,77,0.32);
   --accent-ink: #ff8a8d;
+  --ok: #2fb380;
+  --warn: #f5a524;
+  --bad: #e5484d;
+  --blue: #4a8df0;
   --font-body: 'DM Sans', -apple-system, system-ui, sans-serif;
   --font-display: 'Space Grotesk', 'DM Sans', sans-serif;
   --font-mono-wb: 'JetBrains Mono', ui-monospace, Menlo, monospace;
