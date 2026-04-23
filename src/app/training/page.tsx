@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Bot, Send, User, ChevronDown, AlertCircle, RefreshCw } from 'lucide-react';
 import InfoTooltip from '@/components/ui/InfoTooltip';
+import PageHeader from '@/components/layout/PageHeader';
 
 export default function TrainingSimulatorPage() {
   const [opponent, setOpponent] = useState('Phil Weiser');
@@ -54,19 +55,12 @@ export default function TrainingSimulatorPage() {
   const opponents = ['Phil Weiser', 'Barbara Kirkmeyer', 'Michael Bennet', 'Generic Hostile Journalist'];
 
   return (
-    <div className="p-4 md:p-6" style={{ background: 'var(--surface-0)' }}>
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-3">
-            <Bot className="w-8 h-8 text-blue-400" />
-            AI Debate Simulator
-            <InfoTooltip text="Practice debate responses against an AI that adopts the persona of your political opponents. Select a competitor and test your messaging in real-time." />
-          </h1>
-          <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
-            Spar against an AI engineered to adopt the exact persona, strategies, and facts of your opponent.
-          </p>
-        </div>
-      </div>
+    <div className="p-4 md:p-6 flex flex-col gap-6" style={{ background: 'var(--bg-0)' }}>
+      <PageHeader
+        eyebrow="Training · Red team"
+        title={<><Bot className="w-7 h-7 text-blue-400 inline-block mr-2 align-middle" />Debate Simulator <InfoTooltip text="Practice debate responses against an AI that adopts the persona of your political opponents. Select a competitor and test your messaging in real-time." /></>}
+        subtitle="Spar against an AI engineered to adopt the exact persona, strategies, and facts of your opponent."
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 lg:h-[75vh]">
         

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Brain, Play, CheckCircle, XCircle, Clock, Zap, DollarSign, RefreshCw } from 'lucide-react';
 import InfoTooltip from '@/components/ui/InfoTooltip';
+import PageHeader from '@/components/layout/PageHeader';
 
 const AGENTS = [
   { name: 'competitor_monitor', label: 'Competitor Monitor', schedule: 'Every 4 hours', color: '#f87171' },
@@ -52,18 +53,17 @@ export default function AgentsPage() {
   const totalRuns = runs.length;
 
   return (
-    <div className="p-4 md:p-6" style={{ background: 'var(--surface-0)' }}>
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">Agent Status <InfoTooltip text="Control center for all AI agents powering the campaign. Each agent runs on a schedule to monitor competitors, scan news, generate content, and analyze sentiment." /></h1>
-          <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>Monitor and manage campaign intelligence agents</p>
-        </div>
-        <button onClick={fetchRuns}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium"
-          style={{ background: 'var(--surface-1)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}>
-          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
-        </button>
-      </div>
+    <div className="p-4 md:p-6 flex flex-col gap-6" style={{ background: 'var(--bg-0)' }}>
+      <PageHeader
+        eyebrow="System · Agent fleet"
+        title={<>Agent Status <InfoTooltip text="Control center for all AI agents powering the campaign. Each agent runs on a schedule to monitor competitors, scan news, generate content, and analyze sentiment." /></>}
+        subtitle="Monitor and manage campaign intelligence agents."
+        actions={
+          <button onClick={fetchRuns} className="wb-btn" style={{ background: 'var(--bg-2)' }}>
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
+          </button>
+        }
+      />
 
       {/* Cost Summary */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">

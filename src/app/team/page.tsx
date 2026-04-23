@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Shield, UserPlus, Users, Trash2, Mail, CheckCircle, Loader2 } from 'lucide-react';
 import InfoTooltip from '@/components/ui/InfoTooltip';
+import PageHeader from '@/components/layout/PageHeader';
 
 interface UserProfile {
   id: string;
@@ -79,17 +80,12 @@ export default function TeamPage() {
   }
 
   return (
-    <div className="p-4 md:p-6" style={{ background: 'var(--surface-0)' }}>
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-3">
-            <Shield className="w-8 h-8 text-blue-400" />
-            Team Access
-            <InfoTooltip text="Manage who has access to the War Room. Only administrators can view this page, invite new users, or assign roles." />
-          </h1>
-          <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>Secure portal management and active personnel</p>
-        </div>
-      </div>
+    <div className="p-4 md:p-6 flex flex-col gap-6" style={{ background: 'var(--bg-0)' }}>
+      <PageHeader
+        eyebrow="System · Access control"
+        title={<><Shield className="w-7 h-7 text-blue-400 inline-block mr-2 align-middle" />Team Access <InfoTooltip text="Manage who has access to the War Room. Only administrators can view this page, invite new users, or assign roles." /></>}
+        subtitle="Secure portal management and active personnel."
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Col: Invite */}

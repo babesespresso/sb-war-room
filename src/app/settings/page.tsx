@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import InfoTooltip from '@/components/ui/InfoTooltip';
 import { createBrowserClient } from '@/lib/supabase/client';
+import PageHeader from '@/components/layout/PageHeader';
 
 interface Connection {
   connected: boolean;
@@ -196,29 +197,17 @@ export default function SettingsPage() {
   const sectionConnection = data?.connections?.[section.connectionKey];
 
   return (
-    <div className="p-4 md:p-6" style={{ background: 'var(--surface-0)' }}>
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-3">
-            <Settings className="w-7 h-7" style={{ color: 'var(--campaign-blue)' }} />
-            Settings
-            <InfoTooltip text="Configure all API connections, Slack channels, social platform integrations, and campaign settings needed to power the Warbird Engine." />
-          </h1>
-          <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
-            API connections, Slack channels, and system configuration
-          </p>
-        </div>
-        <button
-          onClick={fetchSettings}
-          disabled={loading}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all"
-          style={{ background: 'var(--surface-1)', border: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}
-        >
-          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          Refresh Status
-        </button>
-      </div>
+    <div className="p-4 md:p-6 flex flex-col gap-6" style={{ background: 'var(--bg-0)' }}>
+      <PageHeader
+        eyebrow="System · Configuration"
+        title={<><Settings className="w-7 h-7 inline-block mr-2 align-middle" style={{ color: 'var(--accent)' }} />Settings <InfoTooltip text="Configure all API connections, Slack channels, social platform integrations, and campaign settings needed to power the War Room." /></>}
+        subtitle="API connections, Slack channels, and system configuration."
+        actions={
+          <button onClick={fetchSettings} disabled={loading} className="wb-btn" style={{ background: 'var(--bg-2)' }}>
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Refresh Status
+          </button>
+        }
+      />
 
       {error && (
         <div className="mb-6 p-4 rounded-lg" style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#f87171' }}>

@@ -6,6 +6,7 @@ import XIcon from '@/components/icons/XIcon';
 import InfoTooltip from '@/components/ui/InfoTooltip';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import MarketOddsChart from '@/components/analytics/MarketOddsChart';
+import PageHeader from '@/components/layout/PageHeader';
 
 interface SocialData {
   connected: boolean;
@@ -52,33 +53,34 @@ export default function AnalyticsPage() {
   ];
 
   return (
-    <div className="p-4 md:p-6" style={{ background: 'var(--surface-0)' }}>
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">Analytics <InfoTooltip text="Campaign performance dashboard showing social media reach, engagement rates, follower growth, and AI agent activity across all connected platforms." /></h1>
-          <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>Campaign performance and engagement metrics</p>
-        </div>
-        <div className="flex items-center gap-4">
-          {social?.connected && (
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium" style={{ background: 'rgba(34,197,94,0.1)', color: '#4ade80', border: '1px solid rgba(34,197,94,0.25)' }}>
-              <XIcon className="w-3.5 h-3.5" />
-              {social.handle} connected
+    <div className="p-4 md:p-6 flex flex-col gap-6" style={{ background: 'var(--bg-0)' }}>
+      <PageHeader
+        eyebrow="Intelligence · Reach & velocity"
+        title={<>Analytics <InfoTooltip text="Campaign performance dashboard showing social media reach, engagement rates, follower growth, and AI agent activity across all connected platforms." /></>}
+        subtitle="Campaign performance and engagement metrics."
+        actions={
+          <div className="flex items-center gap-3">
+            {social?.connected && (
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium" style={{ background: 'rgba(34,197,94,0.1)', color: '#4ade80', border: '1px solid rgba(34,197,94,0.25)' }}>
+                <XIcon className="w-3.5 h-3.5" />
+                {social.handle} connected
+              </div>
+            )}
+            <div className="flex gap-1 p-1 rounded-lg" style={{ background: 'var(--bg-2)' }}>
+              {platforms.map((p) => (
+                <button key={p} onClick={() => setPlatform(p)}
+                  className="px-3 py-1.5 rounded-md text-xs font-medium transition-all"
+                  style={{
+                    background: platform === p ? 'var(--accent)' : 'transparent',
+                    color: platform === p ? 'white' : 'var(--ink-2)',
+                  }}>
+                  {p.charAt(0).toUpperCase() + p.slice(1)}
+                </button>
+              ))}
             </div>
-          )}
-          <div className="flex gap-1 p-1 rounded-lg" style={{ background: 'var(--surface-1)' }}>
-            {platforms.map((p) => (
-              <button key={p} onClick={() => setPlatform(p)}
-                className="px-3 py-1.5 rounded-md text-xs font-medium transition-all"
-                style={{
-                  background: platform === p ? 'var(--navy-800)' : 'transparent',
-                  color: platform === p ? 'white' : 'var(--text-muted)',
-                }}>
-                {p.charAt(0).toUpperCase() + p.slice(1)}
-              </button>
-            ))}
           </div>
-        </div>
-      </div>
+        }
+      />
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">

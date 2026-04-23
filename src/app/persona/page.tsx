@@ -7,6 +7,7 @@ import {
   Video, Upload, Trash2, Film, Clock, Zap, Eye, ChevronDown, ChevronUp
 } from 'lucide-react';
 import InfoTooltip from '@/components/ui/InfoTooltip';
+import PageHeader from '@/components/layout/PageHeader';
 import { SCOTT_VOICE_GUIDE_DEFAULT, SCOTT_CONTENT_RULES_DEFAULT } from '@/lib/persona';
 import { FFmpeg } from '@ffmpeg/ffmpeg';
 import { fetchFile } from '@ffmpeg/util';
@@ -585,46 +586,34 @@ export default function PersonaPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen p-6 flex flex-col items-center justify-center" style={{ background: 'var(--surface-0)' }}>
+      <div className="p-6 flex flex-col items-center justify-center" style={{ minHeight: '60vh', background: 'var(--bg-0)' }}>
         <CubeLoader />
       </div>
     );
   }
 
   return (
-    <div className="p-4 md:p-6" style={{ background: 'var(--surface-0)' }}>
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <div className="flex items-center gap-3 mb-1">
-            <Brain className="w-8 h-8 text-purple-400" />
-            <h1 className="text-3xl font-bold tracking-tight">AI Persona</h1>
-            <InfoTooltip text="Configure how the AI writes content as Scott Bottoms. The voice guide and content rules are injected into every AI prompt to ensure authentic, first-person content generation. Upload videos to train the AI on Scott's actual talking points." />
-          </div>
-          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-            Teach the AI to write like {data?.candidate_name || 'the candidate'}. All generated content will use this persona.
-          </p>
-        </div>
-        <button
-          onClick={() => handleSave()}
-          disabled={saving}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all hover:brightness-110"
-          style={{
-            background: saved ? 'rgba(16, 185, 129, 0.2)' : 'var(--campaign-red)',
-            color: saved ? '#6ee7b7' : 'white',
-            border: saved ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid transparent',
-          }}
-        >
-          {saving ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : saved ? (
-            <CheckCircle className="w-4 h-4" />
-          ) : (
-            <Save className="w-4 h-4" />
-          )}
-          {saving ? 'Saving...' : saved ? 'Saved' : 'Save Persona'}
-        </button>
-      </div>
+    <div className="p-4 md:p-6 flex flex-col gap-6" style={{ background: 'var(--bg-0)' }}>
+      <PageHeader
+        eyebrow="Operations · Voice model"
+        title={<><Brain className="w-7 h-7 text-purple-400 inline-block mr-2 align-middle" />AI Persona <InfoTooltip text="Configure how the AI writes content as Scott Bottoms. The voice guide and content rules are injected into every AI prompt to ensure authentic, first-person content generation. Upload videos to train the AI on Scott's actual talking points." /></>}
+        subtitle={<>Teach the AI to write like {data?.candidate_name || 'the candidate'}. All generated content will use this persona.</>}
+        actions={
+          <button
+            onClick={() => handleSave()}
+            disabled={saving}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all hover:brightness-110"
+            style={{
+              background: saved ? 'rgba(16, 185, 129, 0.2)' : 'var(--accent)',
+              color: saved ? '#6ee7b7' : 'white',
+              border: saved ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid transparent',
+            }}
+          >
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : saved ? <CheckCircle className="w-4 h-4" /> : <Save className="w-4 h-4" />}
+            {saving ? 'Saving...' : saved ? 'Saved' : 'Save Persona'}
+          </button>
+        }
+      />
 
       {error && (
         <div className="mb-6 p-4 rounded-xl flex items-center gap-3 border border-red-500/30" style={{ background: 'rgba(239, 68, 68, 0.1)' }}>

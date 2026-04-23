@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Swords, Shield, ExternalLink, AlertTriangle, Target, ChevronRight, Heart, ThumbsUp, Zap, Sparkles, X } from 'lucide-react';
 import InfoTooltip from '@/components/ui/InfoTooltip';
+import PageHeader from '@/components/layout/PageHeader';
 
 const THREAT_STYLES: Record<string, string> = {
   critical: 'threat-critical',
@@ -129,15 +130,12 @@ export default function CompetitorsPage() {
   };
 
   return (
-    <div className="p-4 md:p-6" style={{ background: 'var(--surface-0)' }}>
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">Competitor Tracking <InfoTooltip text="Full intelligence view of competing gubernatorial campaigns. Monitor their public activity, threat levels, and generate AI-powered counter-strike responses." /></h1>
-          <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
-            Monitor opponent messaging, activity, and threat levels
-          </p>
-        </div>
-      </div>
+    <div className="p-4 md:p-6 flex flex-col gap-6" style={{ background: 'var(--bg-0)' }}>
+      <PageHeader
+        eyebrow="Intelligence · Opposition"
+        title={<>Competitor Tracking <InfoTooltip text="Full intelligence view of competing gubernatorial campaigns. Monitor their public activity, threat levels, and generate AI-powered counter-strike responses." /></>}
+        subtitle="Monitor opponent messaging, activity, and threat levels."
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Competitor List */}

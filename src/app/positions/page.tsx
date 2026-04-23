@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Target, Plus, ChevronDown, ChevronRight, Shield, Edit } from 'lucide-react';
 import InfoTooltip from '@/components/ui/InfoTooltip';
+import PageHeader from '@/components/layout/PageHeader';
 
 const STRENGTH_COLORS: Record<string, string> = {
   strong: '#10b981',
@@ -31,19 +32,17 @@ export default function PositionsPage() {
   }, []);
 
   return (
-    <div className="p-4 md:p-6" style={{ background: 'var(--surface-0)' }}>
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">Policy Positions <InfoTooltip text="Knowledge base of the candidate's policy positions on key issues. Each position includes summaries, talking points, and strength assessments that power AI content generation." /></h1>
-          <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
-            Scott Bottoms' policy positions and talking points knowledge base
-          </p>
-        </div>
-        <button className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium"
-          style={{ background: 'var(--campaign-red)', color: 'white' }}>
-          <Plus className="w-4 h-4" /> Add Position
-        </button>
-      </div>
+    <div className="p-4 md:p-6 flex flex-col gap-6" style={{ background: 'var(--bg-0)' }}>
+      <PageHeader
+        eyebrow="Operations · Knowledge base"
+        title={<>Policy Positions <InfoTooltip text="Knowledge base of the candidate's policy positions on key issues. Each position includes summaries, talking points, and strength assessments that power AI content generation." /></>}
+        subtitle="Scott Bottoms' policy positions and talking points knowledge base."
+        actions={
+          <button className="wb-btn wb-btn-rapid">
+            <Plus className="w-4 h-4" /> Add Position
+          </button>
+        }
+      />
 
       {loading ? (
         <div className="space-y-3">

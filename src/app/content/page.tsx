@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { FileText, ThumbsUp, ThumbsDown, Pencil, Clock, Send, Filter, Plus, Save, X } from 'lucide-react';
 import InfoTooltip from '@/components/ui/InfoTooltip';
+import PageHeader from '@/components/layout/PageHeader';
 
 function DraftCard({ draft, onAction }: { draft: any, onAction: (id: string, action: string, updates?: any) => void }) {
   const [isEditing, setIsEditing] = useState(false);
@@ -130,13 +131,12 @@ export default function ContentPage() {
   const types = ['all', 'social_twitter', 'social_facebook', 'social_instagram', 'email', 'rapid_response'];
 
   return (
-    <div className="p-4 md:p-6" style={{ background: 'var(--surface-0)' }}>
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">Content Queue <InfoTooltip text="Full content management system for all AI-generated campaign posts. Filter by status and platform type, then approve, revise, or reject before publishing." /></h1>
-          <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>Review, approve, and track all campaign content</p>
-        </div>
-      </div>
+    <div className="p-4 md:p-6 flex flex-col gap-6" style={{ background: 'var(--bg-0)' }}>
+      <PageHeader
+        eyebrow="Operations · Drafts"
+        title={<>Content Queue <InfoTooltip text="Full content management system for all AI-generated campaign posts. Filter by status and platform type, then approve, revise, or reject before publishing." /></>}
+        subtitle="Review, approve, and track all campaign content."
+      />
 
       {/* Filters */}
       <div className="flex gap-4 mb-6">
